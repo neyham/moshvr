@@ -1,0 +1,36 @@
+*.keystore
+*.jks
+*.p12
+*.pfx
+import-profiles.json
+.gradle/
+build/
+local.properties
+.idea/
+.DS_Store
+*.iml
+.kotlin/
+third_party/mosh/prebuilt/
+third_party/mosh/upstream/
+third_party/mosh/out/
+
+third_party/mosh/openssl/
+
+# Private inputs and generated evidence must never be published.
+/delivery/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.log
+__pycache__/
+app/src/main/jniLibs/
+
+# Local review and machine-only configuration
+.readme-preview.html
+REVIEW-NOTES.md
+
+# Android native intermediates
+.cxx/
+.externalNativeBuild/

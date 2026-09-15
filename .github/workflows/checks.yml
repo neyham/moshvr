@@ -1,0 +1,28 @@
+name: Source checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Install Android toolchain
+        run: sdkmanager "platforms;android-34" "build-tools;35.0.0" "ndk;27.2.12479018"
+      - name: JVM tests and Android lint
+        run: ./gradlew :app:testDebugUnitTest :app:lintDebug --no-daemon

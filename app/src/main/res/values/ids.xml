@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <item name="panel_main" type="id" />
+  <item name="panel_matrix_left" type="id" />
+  <item name="panel_matrix_right" type="id" />
+  <item name="panel_matrix_back" type="id" />
+</resources>

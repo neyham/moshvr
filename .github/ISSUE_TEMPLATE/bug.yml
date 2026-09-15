@@ -1,0 +1,32 @@
+name: Bug report
+description: Something in moshVR is not working as expected.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "Remove host addresses, credentials, API keys and private terminal output. For security issues, read SECURITY.md."
+  - type: input
+    id: environment
+    attributes:
+      label: Headset, Horizon OS and moshVR version
+      placeholder: "Model / OS version / build or commit"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: "Include SSH or mosh, 2D or immersive mode, and the input method."
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted logs or screenshots
+      description: "Optional. Use a disposable host and inspect attachments before posting."
