@@ -23,6 +23,11 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v6
       - name: Install Android toolchain
-        run: sdkmanager "platforms;android-34" "build-tools;35.0.0" "ndk;27.2.12479018"
+        shell: bash
+        run: |
+          # Hosted runners install command-line tools without adding them to PATH.
+          sdkmanager_paths=("${ANDROID_HOME:?}/cmdline-tools/"*/bin/sdkmanager)
+          test -x "${sdkmanager_paths[0]}"
+          "${sdkmanager_paths[0]}" "platforms;android-34" "build-tools;35.0.0" "ndk;27.2.12479018"
       - name: JVM tests and Android lint
         run: ./gradlew :app:testDebugUnitTest :app:lintDebug --no-daemon
