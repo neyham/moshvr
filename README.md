@@ -7,7 +7,8 @@
 </p>
 
 <p align="center">
-  <a href="#build--install"><strong>Build &amp; install ↗</strong></a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="https://sidequestvr.com/app/62512"><strong>Get on SideQuest ↗</strong></a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#install--run">Install &amp; run</a>&nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="docs/USAGE.md">Controls</a>&nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="SUPPORT.md">Get help</a>&nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="docs/ROADMAP.md">Roadmap</a>
@@ -17,21 +18,6 @@ moshVR is a native **mosh and SSH client for Meta Quest**. Bring a shell,
 a tmux workspace, or a terminal editor into VR. Work in a Home panel, or
 move into a spacious immersive terminal with passthrough and digital rain.
 The client runs on your headset; the shell runs on your server.
-
-
-## On Quest
-
-<p align="center">
-  <a href="docs/media/moshvr-quest3-interface-preview.mp4">
-    <img src="docs/media/moshvr-quest3-interface.gif" alt="Real Quest 3 capture of moshVR's empty immersive workspace, digital rain and tracked pointer." width="640" />
-  </a>
-</p>
-
-<p align="center">
-  <a href="docs/media/moshvr-quest3-interface-preview.mp4">Watch the 9-second capture (MP4)</a> ·
-  <a href="docs/media/moshvr-quest3-interface.png">View still</a><br />
-  <sub>Quest 3 · development build · empty workspace, no SSH connection shown.</sub>
-</p>
 
 ## Features
 
@@ -62,13 +48,20 @@ and send it to your host when you are ready.
 </tr>
 </table>
 
-## Build & install
+## Install & run
 
-**Source preview · A public APK is not available yet.**
+### SideQuest (Recommended)
+
+moshVR is distributed on SideQuest as an Early Access release:
+
+👉 **[Install via SideQuest (App #62512)](https://sidequestvr.com/app/62512)**
+
+Connect your Quest in Developer Mode and install directly with the SideQuest app or web installer.
+
+### Build from source
 
 You need a Quest running **Android API 34+**, Developer Mode, and a reachable
 SSH server. For mosh connections, install `mosh-server` on the server too.
-Physical-headset validation is ongoing.
 
 After [setting up JDK 17, Android SDK and NDK](docs/BUILDING.md#toolchain):
 
@@ -131,5 +124,5 @@ Want to help? Start with [contributing](CONTRIBUTING.md), explore the
 
 Made by **[neyham](https://github.com/neyham)** · Independent software for Quest.
 
-[GPLv3](LICENSE) for moshVR code; dependencies retain their own licenses.
-APK redistribution is pending [dependency and licensing review](THIRD_PARTY.md).
+[GPLv3](LICENSE) for moshVR code; dependencies retain their own licenses as noted in [THIRD_PARTY.md](THIRD_PARTY.md).
+Early Access package is distributed on [SideQuest](https://sidequestvr.com/app/62512).
