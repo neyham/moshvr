@@ -58,7 +58,9 @@ class ImmersiveActivity : AppSystemActivity() {
     override fun onResume() {
         super.onResume()
         inputGate.resumed = true
-        inputGate.focused = hasWindowFocus()
+        // Panels live on their own virtual displays. Using one moves the top focused
+        // display off this window, so window focus would lock every panel after one click.
+        inputGate.focused = true
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -75,12 +77,6 @@ class ImmersiveActivity : AppSystemActivity() {
     override fun onStop() {
         VoiceSession.abandonFrom(this)
         super.onStop()
-    }
-
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        inputGate.focused = hasFocus
-        super.onWindowFocusChanged(hasFocus)
-        if (!hasFocus) VoiceSession.abandonFrom(this)
     }
 
     @Suppress("DEPRECATION")

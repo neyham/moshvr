@@ -81,6 +81,17 @@ class StorePrepRegressionTest {
     }
 
     @Test
+    fun immersiveInputIsNotGatedOnActivityWindowFocus() {
+        val immersive = readNearby(
+            "app/src/main/java/dev/neyham/moshvr/ImmersiveActivity.kt",
+            "src/main/java/dev/neyham/moshvr/ImmersiveActivity.kt",
+        )
+        // Clicking a panel moves focus to the panel's virtual display.
+        assertFalse(immersive.contains("inputGate.focused = hasFocus"))
+        assertFalse(immersive.contains("inputGate.focused = hasWindowFocus()"))
+    }
+
+    @Test
     fun activitiesDoNotCancelAllHostKeysOnDestroy() {
         val panel = readNearby(
             "app/src/main/java/dev/neyham/moshvr/PanelActivity.kt",

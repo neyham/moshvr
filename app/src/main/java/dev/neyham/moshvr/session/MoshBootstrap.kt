@@ -18,7 +18,7 @@ object MoshBootstrap {
 
     /** Non-login SSH has locale `C`; mosh-server refuses that and dumps LC_*. */
     internal val SERVER_START_COMMAND = """
-        export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
+        export PATH="${'$'}PATH:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
         if locale -a 2>/dev/null | grep -qiE 'en_US.utf'; then
           export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 LC_CTYPE=en_US.UTF-8
         else
@@ -46,7 +46,8 @@ object MoshBootstrap {
             val session = conn.openSession()
             try {
                 // sshlib sessions have no LANG; mosh-server refuses US-ASCII and dumps LC_*.
-                // macOS login PATH also lacks Homebrew unless we set it.
+                // macOS non-login PATH lacks Homebrew: append it, keeping the host's own PATH
+                // (Nix, Linuxbrew, ~/.local/bin, snap).
                 session.execCommand(serverStartCommand(profile.startupCommand))
                 val stdout = session.stdout.readBytes().toString(Charsets.UTF_8)
                 val stderr = session.stderr.readBytes().toString(Charsets.UTF_8)

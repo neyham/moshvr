@@ -129,6 +129,11 @@ class MoshBootstrapRegressionTest {
     }
 
     @Test
+    fun startCommandKeepsHostPath() {
+        assertTrue(MoshBootstrap.SERVER_START_COMMAND.contains("export PATH=\"\$PATH:"))
+    }
+
+    @Test
     fun parseConnectReadsHandshake() {
         val ep = MoshBootstrap.parseConnect("noise\nMOSH CONNECT 60001 8Yu9wVVpYgIAQr05nu8J5Q\n")
         assertNotNull(ep)
