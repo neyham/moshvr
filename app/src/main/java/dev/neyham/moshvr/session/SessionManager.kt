@@ -20,8 +20,10 @@ class OpenSession(
     val id: String,
     val profile: HostProfile,
     val client: ViewTerminalSessionClient,
-    val session: TerminalSession,
+    session: TerminalSession,
 ) {
+    /** Replaced in place on reconnect, so the tab keeps its id, title and composer draft. */
+    var session by mutableStateOf(session)
     var title by mutableStateOf(profile.displayName)
     var finished by mutableStateOf(false)
     /** Unsent composer text; survives 2D↔VR Activity handoff. Never auto-sent. */
@@ -35,6 +37,7 @@ class ViewTerminalSessionClient(
     private val onFinished: () -> Unit,
     private val onTitle: (String?) -> Unit,
     private val onScreenChanged: (TerminalSession) -> Unit = {},
+    private val onEnterAfterFinished: (TerminalSession) -> Unit = {},
 ) : TerminalSessionClient {
 
     @Volatile
@@ -50,6 +53,8 @@ class ViewTerminalSessionClient(
     }
 
     override fun onSessionFinished(finishedSession: TerminalSession) = onFinished()
+
+    override fun onEnterAfterFinished(finishedSession: TerminalSession) = onEnterAfterFinished.invoke(finishedSession)
 
     override fun onCopyTextToClipboard(session: TerminalSession, text: String?) {
         val v = view ?: return
@@ -100,17 +105,32 @@ class SessionManager(private val appContext: Context) {
         val client = ViewTerminalSessionClient(
             onFinished = { open.finished = true },
             onTitle = { title -> if (!title.isNullOrBlank()) open.title = title },
+            onEnterAfterFinished = { finished -> if (open.session === finished) reconnect(open.id) },
         )
-        val session = if (profile.useMosh) {
-            MoshTerminalSession(appContext, profile, knownHosts, id, client)
-        } else {
-            TransportTerminalSession(SshTransport(profile, knownHosts, id), profile.startupCommand, client)
-        }
-        open = OpenSession(id, profile, client, session)
+        open = OpenSession(id, profile, client, newSession(profile, id, client))
         sessions.add(open)
         activeSessionId = id
         return open
     }
+
+    /** Start a fresh connection in an existing tab whose session has ended. */
+    fun reconnect(id: String) {
+        val open = sessions.firstOrNull { it.id == id } ?: return
+        if (open.session.isRunning) return
+        HostKeyPrompt.cancelOwner(id)
+        runCatching { open.session.finishIfRunning() }
+        open.finished = false
+        open.title = open.profile.displayName
+        // The attached TerminalView sees the new session and attaches it, which starts the connect.
+        open.session = newSession(open.profile, id, open.client)
+    }
+
+    private fun newSession(profile: HostProfile, id: String, client: ViewTerminalSessionClient): TerminalSession =
+        if (profile.useMosh) {
+            MoshTerminalSession(appContext, profile, knownHosts, id, client)
+        } else {
+            TransportTerminalSession(SshTransport(profile, knownHosts, id), profile.startupCommand, client)
+        }
 
     /** Cycle the active session tab (used by hand microgestures in immersive mode). */
     fun cycleActive(direction: Int) {

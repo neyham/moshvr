@@ -17,5 +17,11 @@ interface TerminalTransport {
     /** Inform the remote PTY of a new terminal size. */
     fun resize(columns: Int, rows: Int)
 
+    /** Exit status the remote reported for the shell, or null if the link dropped without one. */
+    fun remoteExitStatus(): Int? = null
+
+    /** Called from a background thread when the transport notices the link is dead. */
+    fun setDeadLinkListener(listener: () -> Unit) {}
+
     fun close()
 }

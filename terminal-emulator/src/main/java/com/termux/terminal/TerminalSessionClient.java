@@ -16,6 +16,9 @@ public interface TerminalSessionClient {
 
     void onSessionFinished(@NonNull TerminalSession finishedSession);
 
+    /** MODIFIED (moshVR): Enter was typed into a session that has already finished. */
+    default void onEnterAfterFinished(@NonNull TerminalSession finishedSession) {}
+
     void onCopyTextToClipboard(@NonNull TerminalSession session, String text);
 
     void onPasteTextFromClipboard(@Nullable TerminalSession session);

@@ -410,8 +410,11 @@ fun TerminalPane(
                 status = voiceStatus,
                 onMic = { toggleTalk() },
                 onSend = { text ->
-                    open.session.write(text + "\r")
-                    composerOpen = false
+                    // On an ended session the "\r" triggers a reconnect; keep the draft for after it.
+                    val live = open.session.isRunning
+                    open.session.write(if (live) text + "\r" else "\r")
+                    if (live) composerOpen = false
+                    live
                 },
                 focusRequester = composerFocus,
             )
@@ -514,7 +517,8 @@ private fun CommandComposer(
     transcribing: Boolean,
     status: String?,
     onMic: () -> Unit,
-    onSend: (String) -> Unit,
+    /** Returns false when nothing was sent, so the draft is kept. */
+    onSend: (String) -> Boolean,
     focusRequester: FocusRequester,
 ) {
     Column(
@@ -525,8 +529,7 @@ private fun CommandComposer(
     ) {
         fun submitComposer() {
             if (text.isNotBlank()) {
-                onSend(text.trim())
-                onTextChange("")
+                if (onSend(text.trim())) onTextChange("")
             } else {
                 onSend("")
             }

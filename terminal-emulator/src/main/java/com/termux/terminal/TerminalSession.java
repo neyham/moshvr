@@ -178,7 +178,19 @@ public class TerminalSession extends TerminalOutput {
     /** Write data to the shell process. */
     @Override
     public void write(byte[] data, int offset, int count) {
-        if (mShellPid > 0) mTerminalToProcessIOQueue.write(data, offset, count);
+        if (mShellPid > 0) {
+            mTerminalToProcessIOQueue.write(data, offset, count);
+        } else if (mShellPid < 0 && containsCarriageReturn(data, offset, count)) {
+            // MODIFIED (moshVR): the exit banner says "press Enter"; let the client act on it.
+            mClient.onEnterAfterFinished(this);
+        }
+    }
+
+    private static boolean containsCarriageReturn(byte[] data, int offset, int count) {
+        for (int i = offset; i < offset + count; i++) {
+            if (data[i] == '\r') return true;
+        }
+        return false;
     }
 
     /** Write the Unicode code point to the terminal encoded in UTF-8. */
@@ -264,6 +276,19 @@ public class TerminalSession extends TerminalOutput {
 
     public synchronized boolean isRunning() {
         return mShellPid != -1;
+    }
+
+    // MODIFIED (moshVR): overridable so network sessions can say "disconnected".
+    protected String exitDescription(int exitCode) {
+        String exitDescription = "\r\n[Process completed";
+        if (exitCode > 0) {
+            // Non-zero process exit.
+            exitDescription += " (code " + exitCode + ")";
+        } else if (exitCode < 0) {
+            // Negated signal.
+            exitDescription += " (signal " + (-exitCode) + ")";
+        }
+        return exitDescription + " - press Enter to reconnect]";
     }
 
     /** Only valid if not {@link #isRunning()}. */
@@ -352,17 +377,7 @@ public class TerminalSession extends TerminalOutput {
                 int exitCode = (Integer) msg.obj;
                 cleanupResources(exitCode);
 
-                String exitDescription = "\r\n[Process completed";
-                if (exitCode > 0) {
-                    // Non-zero process exit.
-                    exitDescription += " (code " + exitCode + ")";
-                } else if (exitCode < 0) {
-                    // Negated signal.
-                    exitDescription += " (signal " + (-exitCode) + ")";
-                }
-                exitDescription += " - press Enter]";
-
-                byte[] bytesToWrite = exitDescription.getBytes(StandardCharsets.UTF_8);
+                byte[] bytesToWrite = exitDescription(exitCode).getBytes(StandardCharsets.UTF_8);
                 mEmulator.append(bytesToWrite, bytesToWrite.length);
                 notifyScreenUpdate();
 

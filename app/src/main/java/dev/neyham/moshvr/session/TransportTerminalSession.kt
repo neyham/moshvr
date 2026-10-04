@@ -3,6 +3,7 @@ package dev.neyham.moshvr.session
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A [TerminalSession] backed by a [TerminalTransport] (e.g. SSH) instead of a
@@ -28,6 +29,13 @@ class TransportTerminalSession(
     @Volatile
     private var closed = false
 
+    /** Guards MSG_PROCESS_EXITED: reader, keepalive and close() can all race to end the session. */
+    private val exitPosted = AtomicBoolean(false)
+
+    /** How the session ended; read on the main thread when the exit banner is drawn. */
+    @Volatile
+    private var ending: SessionEnding = SessionEnding.Disconnected
+
     private var columns = 80
     private var rows = 24
 
@@ -36,6 +44,9 @@ class TransportTerminalSession(
         this.rows = rows
         mEmulator = TerminalEmulator(this, columns, rows, cellWidthPixels, cellHeightPixels, mTranscriptRows, mClient)
         mShellPid = 1 // "running" sentinel; base class gates writes on pid > 0
+        transport.setDeadLinkListener {
+            if (!closed) postExit(SessionEnding.Disconnected, 0)
+        }
 
         Thread({
             try {
@@ -52,7 +63,7 @@ class TransportTerminalSession(
             } catch (e: Exception) {
                 if (!closed) {
                     showSystemMessage("\r\n\u001b[31m[connection failed: ${e.message}]\u001b[0m\r\n")
-                    mMainThreadHandler.sendMessage(mMainThreadHandler.obtainMessage(MSG_PROCESS_EXITED, -1))
+                    postExit(SessionEnding.ConnectFailed, -1)
                 }
             }
         }, "TransportConnect[${mHandle}]").start()
@@ -71,8 +82,22 @@ class TransportTerminalSession(
         } catch (_: Exception) {
             // Connection torn down.
         }
-        mMainThreadHandler.sendMessage(mMainThreadHandler.obtainMessage(MSG_PROCESS_EXITED, 0))
+        if (closed) return
+        val status = transport.remoteExitStatus()
+        if (status != null) {
+            postExit(SessionEnding.RemoteExit(status), status)
+        } else {
+            postExit(SessionEnding.Disconnected, 0)
+        }
     }
+
+    private fun postExit(how: SessionEnding, exitCode: Int) {
+        if (!exitPosted.compareAndSet(false, true)) return
+        ending = how
+        mMainThreadHandler.sendMessage(mMainThreadHandler.obtainMessage(MSG_PROCESS_EXITED, exitCode))
+    }
+
+    override fun exitDescription(exitCode: Int): String = ending.banner()
 
     /** Writer: user input queue -> transport. */
     private fun startWriterThread(s: TransportStreams) {
@@ -105,9 +130,7 @@ class TransportTerminalSession(
     override fun finishIfRunning() {
         closed = true
         transport.close()
-        if (isRunning) {
-            mMainThreadHandler.sendMessage(mMainThreadHandler.obtainMessage(MSG_PROCESS_EXITED, 0))
-        }
+        if (isRunning) postExit(SessionEnding.Closed, 0)
     }
 
     override fun cleanupResources(exitStatus: Int) {
@@ -131,5 +154,21 @@ class TransportTerminalSession(
 
     companion object {
         private const val TRANSCRIPT_ROWS = 8000
+    }
+}
+
+sealed class SessionEnding {
+    data object Disconnected : SessionEnding()
+    data object ConnectFailed : SessionEnding()
+    data object Closed : SessionEnding()
+    data class RemoteExit(val status: Int) : SessionEnding()
+
+    fun banner(): String = when (this) {
+        Disconnected -> "\r\n\u001b[33m[disconnected - press Enter to reconnect]\u001b[0m"
+        ConnectFailed -> "\r\n[press Enter to retry]"
+        Closed -> "\r\n[closed]"
+        is RemoteExit ->
+            if (status == 0) "\r\n[session ended - press Enter to reconnect]"
+            else "\r\n[session ended (code $status) - press Enter to reconnect]"
     }
 }
