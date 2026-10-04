@@ -63,6 +63,7 @@
     <!-- 2D panel activity: default launcher, comfortable flat mode -->
     <activity
       android:name=".PanelActivity"
+      android:launchMode="singleTask"
       android:theme="@style/AppTheme"
       android:exported="true"
       android:excludeFromRecents="true"
