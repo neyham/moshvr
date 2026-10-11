@@ -66,9 +66,16 @@ fun MoshVrRoot(
         val cycle: (Int) -> Unit = { dir ->
             sessionManager.active?.session?.write(HerdrKeys.tabChord(dir))
         }
+        val workspace: (Int) -> Unit = { dir ->
+            sessionManager.active?.session?.write(HerdrKeys.workspaceChord(dir))
+        }
         StickChrome.bindCycleTab(cycle)
+        StickChrome.bindCycleWorkspace(workspace)
         // 2D↔VR handoff disposes the old root after the new one binds; don't unbind the new one.
-        onDispose { StickChrome.unbindCycleTab(cycle) }
+        onDispose {
+            StickChrome.unbindCycleTab(cycle)
+            StickChrome.unbindCycleWorkspace(workspace)
+        }
     }
 
     MoshVrTheme {

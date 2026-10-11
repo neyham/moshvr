@@ -19,6 +19,8 @@ data class ExtraKeySpec(
 
 /** Fixed extra-key row. MIC is first so voice is a shortcut, not only the composer icon. */
 object ExtraKeys {
+    const val PAGE_ROWS = 15
+
     val catalog: List<ExtraKeySpec> = listOf(
         ExtraKeySpec("mic", "MIC", ExtraKeyAction.Mic),
         ExtraKeySpec("enter", "⏎ ENTER", ExtraKeyAction.Write("\r")),
@@ -29,8 +31,9 @@ object ExtraKeys {
         ExtraKeySpec("ctrl", "CTRL", ExtraKeyAction.ToggleCtrl),
         ExtraKeySpec("alt", "ALT", ExtraKeyAction.ToggleAlt),
         ExtraKeySpec("left", "◀TAB", ExtraKeyAction.Write(HerdrKeys.prevTab)),
-        ExtraKeySpec("down", "DN", ExtraKeyAction.Scroll(1)),
-        ExtraKeySpec("up", "UP", ExtraKeyAction.Scroll(-1)),
+        // The stick now switches workspaces, so these scroll a page at a time.
+        ExtraKeySpec("down", "PgDn", ExtraKeyAction.Scroll(ExtraKeys.PAGE_ROWS)),
+        ExtraKeySpec("up", "PgUp", ExtraKeyAction.Scroll(-ExtraKeys.PAGE_ROWS)),
         ExtraKeySpec("right", "TAB▶", ExtraKeyAction.Write(HerdrKeys.nextTab)),
         ExtraKeySpec("ctrl-c", "^C", ExtraKeyAction.Write("\u0003")),
         ExtraKeySpec("ctrl-d", "^D", ExtraKeyAction.Write("\u0004")),
@@ -69,6 +72,12 @@ object HerdrKeys {
     const val nextTab = PREFIX + "n"
 
     fun tabChord(direction: Int): String = if (direction < 0) prevTab else nextTab
+
+    /** herdr binds prefix+up / prefix+down to previous / next workspace. */
+    const val prevWorkspace = PREFIX + "\u001b[A"
+    const val nextWorkspace = PREFIX + "\u001b[B"
+
+    fun workspaceChord(direction: Int): String = if (direction < 0) prevWorkspace else nextWorkspace
 }
 
 /** 2D home panel (~1180×720). 42 px looked like a poster; 22 is a normal terminal. */

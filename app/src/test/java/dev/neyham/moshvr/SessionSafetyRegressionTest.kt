@@ -159,6 +159,20 @@ class VoiceOwnerIsolationTest {
     }
 
     @Test
+    fun heldStickSwitchesOneWorkspacePerPush() {
+        val sc = dev.neyham.moshvr.ui.StickChrome
+        val t0 = 1_000_000L
+        assertEquals(-1, sc.verticalEdge(-1, t0))
+        assertEquals(0, sc.verticalEdge(-1, t0 + 50)) // still held: scroll events keep coming
+        assertEquals(0, sc.verticalEdge(-1, t0 + 100))
+        assertEquals(-1, sc.verticalEdge(-1, t0 + 100 + sc.WORKSPACE_GAP_MS + 1)) // released, pushed again
+        assertEquals(1, sc.verticalEdge(1, t0 + 700))
+        assertEquals(0, sc.verticalEdge(0, t0 + 720))
+        assertEquals(1, sc.verticalEdge(1, t0 + 740))
+        assertEquals("\u0002\u001b[A", dev.neyham.moshvr.ui.HerdrKeys.workspaceChord(-1))
+    }
+
+    @Test
     fun controllerBSendsEnterUnlessVoiceIsBusy() {
         val token = Any()
         var enters = 0

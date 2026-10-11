@@ -64,6 +64,39 @@ object StickChrome {
     fun unbindCycleTab(handler: (Int) -> Unit) {
         if (onCycleTab === handler) onCycleTab = null
     }
+
+    /** Stick up/down: herdr previous/next workspace, like the remote's arrow keys. */
+    @Volatile var onCycleWorkspace: ((Int) -> Unit)? = null
+
+    fun bindCycleWorkspace(handler: (Int) -> Unit) {
+        onCycleWorkspace = handler
+    }
+
+    fun unbindCycleWorkspace(handler: (Int) -> Unit) {
+        if (onCycleWorkspace === handler) onCycleWorkspace = null
+    }
+
+    /** A push counts once: scroll events keep coming while the stick is held. */
+    const val WORKSPACE_GAP_MS = 250L
+    private var lastVerticalAt = 0L
+    private var latchedVertical = 0
+
+    fun verticalEdge(dir: Int, now: Long): Int {
+        val fresh = now - lastVerticalAt > WORKSPACE_GAP_MS
+        if (dir == 0) {
+            latchedVertical = 0
+            return 0
+        }
+        lastVerticalAt = now
+        if (!fresh && dir == latchedVertical) return 0
+        latchedVertical = dir
+        return dir
+    }
+
+    fun maybeWorkspace(dir: Int) {
+        val edge = verticalEdge(dir, android.os.SystemClock.uptimeMillis())
+        if (edge != 0) onCycleWorkspace?.invoke(edge)
+    }
     private var latchedTabDir = 0
     private var lastTabAt = 0L
 
@@ -92,8 +125,11 @@ object StickChrome {
         if (rows == 0 && tabs == 0) return false
         // Quest 2D focus-nav synthesizes DPAD with SOURCE_KEYBOARD after a chrome click.
         if (!down || repeat > 0) return true
-        if (rows != 0) view?.scrollLines(rows)
-        else maybeCycle(tabs)
+        if (rows != 0) {
+            if (onCycleWorkspace != null) onCycleWorkspace?.invoke(rows) else view?.scrollLines(rows)
+        } else {
+            maybeCycle(tabs)
+        }
         return true
     }
 
@@ -108,6 +144,11 @@ object StickChrome {
                     hscroll,
                 )
                 maybeCycle(com.termux.view.StickScroll.tabsForAxis(signed))
+                return true
+            }
+            if (onCycleWorkspace != null && vscroll != 0f) {
+                // Scroll-up is positive; up means previous workspace.
+                maybeWorkspace(if (vscroll > 0f) -1 else 1)
                 return true
             }
             if (view?.onGenericMotionEvent(event) == true) return true
@@ -135,8 +176,13 @@ object StickChrome {
         val dir = com.termux.view.StickScroll.tabsForAxis(x)
         if (com.termux.view.StickScroll.preferVertical(x, y)) {
             if (dir == 0) edgeTab(0)
+            if (onCycleWorkspace != null) {
+                maybeWorkspace(com.termux.view.StickScroll.tabsForAxis(y))
+                return true
+            }
             return view?.onGenericMotionEvent(event) == true
         }
+        if (onCycleWorkspace != null) maybeWorkspace(0)
         if (dir != 0) {
             maybeCycle(dir)
             return true

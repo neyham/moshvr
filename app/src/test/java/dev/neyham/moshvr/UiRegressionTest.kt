@@ -52,8 +52,8 @@ class ExtraKeysRegressionTest {
         assertEquals("\u0002n", HerdrKeys.tabChord(1))
         val up = ExtraKeys.catalog.first { it.id == "up" }.action as ExtraKeyAction.Scroll
         val down = ExtraKeys.catalog.first { it.id == "down" }.action as ExtraKeyAction.Scroll
-        assertEquals(-1, up.rows)
-        assertEquals(1, down.rows)
+        assertEquals(-ExtraKeys.PAGE_ROWS, up.rows)
+        assertEquals(ExtraKeys.PAGE_ROWS, down.rows)
     }
 
     @Test
