@@ -94,6 +94,11 @@ public class TerminalSession extends TerminalOutput {
      * @param client The {@link TerminalSessionClient} interface implementation to allow
      *               for communication between {@link TerminalSession} and its client.
      */
+    /** moshVR: lets a reattaching view detach the previous session's client. */
+    public TerminalSessionClient getClient() {
+        return mClient;
+    }
+
     public void updateTerminalSessionClient(TerminalSessionClient client) {
         mClient = client;
 

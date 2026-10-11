@@ -68,6 +68,7 @@ import com.termux.view.TerminalView
 import com.termux.view.TerminalViewClient
 import dev.neyham.moshvr.data.SettingsStore
 import dev.neyham.moshvr.session.OpenSession
+import dev.neyham.moshvr.session.ViewTerminalSessionClient
 import dev.neyham.moshvr.voice.VoiceInput
 import dev.neyham.moshvr.voice.VoiceSession
 
@@ -117,7 +118,7 @@ class MoshVrTerminalViewClient(
     override fun copyModeChanged(copyMode: Boolean) {}
 
     override fun onKeyDown(keyCode: Int, e: KeyEvent, session: TerminalSession): Boolean {
-        if (StickChrome.dispatchKey(e.source, keyCode, true, e.repeatCount, view)) return true
+        if (StickChrome.dispatchKey(e.source, keyCode, true, e.repeatCount, view, KeyOrigin.isTyped(e))) return true
         return TerminalPointer.shouldSwallowControllerKey(e.source, keyCode)
     }
 
@@ -381,6 +382,11 @@ fun TerminalPane(
                         v.setTextSize(fontSizePx)
                     }
                     if (v.mTermSession !== open.session) {
+                        // The previous tab keeps running in the background; it must stop driving
+                        // this view, or its output snaps the current tab's scrollback to the bottom.
+                        (v.mTermSession?.client as? ViewTerminalSessionClient)?.let { previous ->
+                            if (previous !== open.client && previous.view === v) previous.view = null
+                        }
                         open.client.view = v
                         v.attachSession(open.session)
                     }

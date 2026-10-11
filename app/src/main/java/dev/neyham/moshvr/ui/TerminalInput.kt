@@ -138,12 +138,22 @@ object StickChrome {
         onCycleTab?.invoke(edge)
     }
 
-    fun dispatchKey(source: Int, keyCode: Int, down: Boolean, repeat: Int, view: TerminalView?): Boolean {
+    /**
+     * Arrow keys from a real keyboard are typing (shell history, editors, composer cursor) and
+     * pass through; only controller and synthesized DPAD keys become tab/workspace shortcuts.
+     */
+    fun dispatchKey(source: Int, keyCode: Int, down: Boolean, repeat: Int, view: TerminalView?, typed: Boolean = false): Boolean {
+        if (typed) return false
         val rows = com.termux.view.StickScroll.rowsForDpad(keyCode)
         val tabs = com.termux.view.StickScroll.tabsForDpad(keyCode)
         if (rows == 0 && tabs == 0) return false
         // Quest 2D focus-nav synthesizes DPAD with SOURCE_KEYBOARD after a chrome click.
-        if (!down || repeat > 0) return true
+        if (!down) {
+            // Each release re-arms the tab latch, so two separate presses switch twice.
+            if (tabs != 0) edgeTab(0)
+            return true
+        }
+        if (repeat > 0) return true
         if (rows != 0) {
             if (onCycleWorkspace != null) onCycleWorkspace?.invoke(rows) else view?.scrollLines(rows)
         } else {
@@ -304,30 +314,14 @@ object VoicePtt {
     }
 }
 
-/** TEMPORARY (0.1.2 bring-up): which controller inputs reach the app in 2D and immersive. */
-object InputDiag {
-    private var lastMotionLog = 0L
-
-    fun key(where: String, e: KeyEvent, gate: Boolean) {
-        if (e.action != KeyEvent.ACTION_DOWN || e.repeatCount != 0) return
-        runCatching {
-            android.util.Log.d("moshvr-keys", "$where key=${KeyEvent.keyCodeToString(e.keyCode)} src=0x${Integer.toHexString(e.source)} gate=$gate")
-        }
+/** Tells a hardware keyboard apart from controllers and the system's synthesized focus keys. */
+object KeyOrigin {
+    fun isTyped(event: KeyEvent): Boolean {
+        val device = event.device ?: return false
+        return isTyped(device.isVirtual, device.keyboardType)
     }
 
-    fun motion(where: String, e: MotionEvent, gate: Boolean) {
-        val now = android.os.SystemClock.uptimeMillis()
-        if (now - lastMotionLog < 250) return
-        val x = e.getAxisValue(MotionEvent.AXIS_X)
-        val y = e.getAxisValue(MotionEvent.AXIS_Y)
-        val h = e.getAxisValue(MotionEvent.AXIS_HSCROLL)
-        val v = e.getAxisValue(MotionEvent.AXIS_VSCROLL)
-        val hx = e.getAxisValue(MotionEvent.AXIS_HAT_X)
-        val hy = e.getAxisValue(MotionEvent.AXIS_HAT_Y)
-        if (maxOf(kotlin.math.abs(x), kotlin.math.abs(y), kotlin.math.abs(h), kotlin.math.abs(v), kotlin.math.abs(hx), kotlin.math.abs(hy)) < 0.3f) return
-        lastMotionLog = now
-        runCatching {
-            android.util.Log.d("moshvr-keys", "$where motion act=${e.actionMasked} src=0x${Integer.toHexString(e.source)} x=$x y=$y h=$h v=$v hat=$hx,$hy gate=$gate")
-        }
-    }
+    /** The virtual keyboard device (focus navigation, injected keys) is alphabetic too. */
+    fun isTyped(isVirtual: Boolean, keyboardType: Int): Boolean =
+        !isVirtual && keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC
 }

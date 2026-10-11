@@ -26,6 +26,8 @@ class OpenSession(
     var session by mutableStateOf(session)
     var title by mutableStateOf(profile.displayName)
     var finished by mutableStateOf(false)
+    /** Host-key prompt owner of the current connection attempt; new on every reconnect. */
+    var connectOwner = ""
     /** Unsent composer text; survives 2D↔VR Activity handoff. Never auto-sent. */
     var composerDraft by mutableStateOf("")
 }
@@ -87,6 +89,11 @@ class ViewTerminalSessionClient(
     override fun logStackTrace(tag: String?, e: Exception?) {}
 }
 
+/** One host-key prompt owner per connection attempt in a tab. */
+object ConnectOwner {
+    fun next(tabId: String): String = "$tabId#${UUID.randomUUID()}"
+}
+
 /** App-wide registry of open sessions, shared between 2D and immersive activities. */
 class SessionManager(private val appContext: Context) {
 
@@ -107,7 +114,9 @@ class SessionManager(private val appContext: Context) {
             onTitle = { title -> if (!title.isNullOrBlank()) open.title = title },
             onEnterAfterFinished = { finished -> if (open.session === finished) reconnect(open.id) },
         )
-        open = OpenSession(id, profile, client, newSession(profile, id, client))
+        val owner = ConnectOwner.next(id)
+        open = OpenSession(id, profile, client, newSession(profile, owner, client))
+        open.connectOwner = owner
         sessions.add(open)
         activeSessionId = id
         return open
@@ -117,19 +126,22 @@ class SessionManager(private val appContext: Context) {
     fun reconnect(id: String) {
         val open = sessions.firstOrNull { it.id == id } ?: return
         if (open.session.isRunning) return
-        HostKeyPrompt.cancelOwner(id)
+        // Cancelling an owner is permanent, so the retry gets a fresh one and can prompt again.
+        HostKeyPrompt.cancelOwner(open.connectOwner)
         runCatching { open.session.finishIfRunning() }
         open.finished = false
         open.title = open.profile.displayName
+        val owner = ConnectOwner.next(id)
+        open.connectOwner = owner
         // The attached TerminalView sees the new session and attaches it, which starts the connect.
-        open.session = newSession(open.profile, id, open.client)
+        open.session = newSession(open.profile, owner, open.client)
     }
 
-    private fun newSession(profile: HostProfile, id: String, client: ViewTerminalSessionClient): TerminalSession =
+    private fun newSession(profile: HostProfile, owner: String, client: ViewTerminalSessionClient): TerminalSession =
         if (profile.useMosh) {
-            MoshTerminalSession(appContext, profile, knownHosts, id, client)
+            MoshTerminalSession(appContext, profile, knownHosts, owner, client)
         } else {
-            TransportTerminalSession(SshTransport(profile, knownHosts, id), profile.startupCommand, client)
+            TransportTerminalSession(SshTransport(profile, knownHosts, owner), profile.startupCommand, client)
         }
 
     /** Cycle the active session tab (used by hand microgestures in immersive mode). */
@@ -142,7 +154,7 @@ class SessionManager(private val appContext: Context) {
 
     fun close(id: String) {
         val open = sessions.firstOrNull { it.id == id } ?: return
-        HostKeyPrompt.cancelOwner(id)
+        HostKeyPrompt.cancelOwner(open.connectOwner)
         runCatching { open.session.finishIfRunning() }
         sessions.remove(open)
         if (activeSessionId == id) {

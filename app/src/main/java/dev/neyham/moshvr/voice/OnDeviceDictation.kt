@@ -60,12 +60,9 @@ class OnDeviceDictation(
         onListening(false)
     }
 
-    private fun create(): SpeechRecognizer =
-        if (SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
-            SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
-        } else {
-            SpeechRecognizer.createSpeechRecognizer(context)
-        }
+    // Only the on-device recognizer: a generic one may send audio to a server, which would break
+    // what the MIC promises. Without it, MIC falls back to the system keyboard instead.
+    private fun create(): SpeechRecognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
 
     private val listener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {}
@@ -98,8 +95,7 @@ class OnDeviceDictation(
 
     companion object {
         fun available(context: Context): Boolean =
-            SpeechRecognizer.isOnDeviceRecognitionAvailable(context) ||
-                SpeechRecognizer.isRecognitionAvailable(context)
+            SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
     }
 }
 

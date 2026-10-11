@@ -112,7 +112,6 @@ class ImmersiveActivity : AppSystemActivity() {
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-        dev.neyham.moshvr.ui.InputDiag.motion("vr", event, inputGate.allowDispatch())
         if (!inputGate.allowDispatch()) return true
         if (spatialDialogOpen) return super.dispatchGenericMotionEvent(event)
         val view = (application as MoshVrApp).sessionManager.active?.client?.view
@@ -121,7 +120,6 @@ class ImmersiveActivity : AppSystemActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        dev.neyham.moshvr.ui.InputDiag.key("vr", event, inputGate.allowDispatch())
         if (!inputGate.allowDispatch()) return true
         if (spatialDialogOpen) return super.dispatchKeyEvent(event)
         val down = event.action == KeyEvent.ACTION_DOWN
@@ -133,6 +131,7 @@ class ImmersiveActivity : AppSystemActivity() {
         val view = (application as MoshVrApp).sessionManager.active?.client?.view
         if (StickChrome.dispatchKey(
                 event.source, event.keyCode, down, event.repeatCount, view,
+                dev.neyham.moshvr.ui.KeyOrigin.isTyped(event),
             )
         ) {
             return true

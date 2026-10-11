@@ -30,4 +30,4 @@ jobs:
           test -x "${sdkmanager_paths[0]}"
           "${sdkmanager_paths[0]}" "platforms;android-34" "build-tools;35.0.0" "ndk;27.2.12479018"
       - name: JVM tests and Android lint
-        run: ./gradlew :app:testDebugUnitTest :app:lintDebug --no-daemon
+        run: ./gradlew :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :app:lintDebug --no-daemon

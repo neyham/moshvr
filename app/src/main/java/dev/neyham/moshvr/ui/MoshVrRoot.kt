@@ -112,6 +112,7 @@ fun MoshVrRoot(
                         ev.type == KeyEventType.KeyDown,
                         0,
                         sessionManager.active?.client?.view,
+                        KeyOrigin.isTyped(ev.nativeKeyEvent),
                     )
                 }
 
@@ -145,7 +146,11 @@ fun MoshVrRoot(
                     ChromeText("A-", MoshVrColors.TextSecondary) { if (fontSizePx > 14) fontSizePx -= 2 }
                     ChromeText("A+", MoshVrColors.TextSecondary) { if (fontSizePx < 64) fontSizePx += 2 }
                     ChromeText("[ ? ]", MoshVrColors.Green) { showShortcuts = true }
-                    ChromeText("⚙", MoshVrColors.TextSecondary) { showSettings = true }
+                    ChromeText("⚙", MoshVrColors.TextSecondary) {
+                        // Hosts accepted since the last look must show up (and be forgettable).
+                        knownHosts = sessionManager.knownHosts.list()
+                        showSettings = true
+                    }
                     extraTopBarContent?.invoke()
                     ChromeText(modeSwitchLabel, MoshVrColors.Green, onClick = onModeSwitch)
                 }

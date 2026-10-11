@@ -73,7 +73,6 @@ class PanelActivity : ComponentActivity() {
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-        dev.neyham.moshvr.ui.InputDiag.motion("2d", event, inputGate.allowDispatch())
         if (!inputGate.allowDispatch()) return true
         val view = (application as MoshVrApp).sessionManager.active?.client?.view
         if (ControllerMotion.dispatch(view, event)) return true
@@ -84,7 +83,6 @@ class PanelActivity : ComponentActivity() {
     // annotation; forwarding unhandled events is required for normal keyboard/IME input.
     @android.annotation.SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        dev.neyham.moshvr.ui.InputDiag.key("2d", event, inputGate.allowDispatch())
         if (!inputGate.allowDispatch()) return true
         val down = event.action == KeyEvent.ACTION_DOWN
         if ((down || event.action == KeyEvent.ACTION_UP) &&
@@ -95,6 +93,7 @@ class PanelActivity : ComponentActivity() {
         val view = (application as MoshVrApp).sessionManager.active?.client?.view
         if (StickChrome.dispatchKey(
                 event.source, event.keyCode, down, event.repeatCount, view,
+                dev.neyham.moshvr.ui.KeyOrigin.isTyped(event),
             )
         ) {
             return true
