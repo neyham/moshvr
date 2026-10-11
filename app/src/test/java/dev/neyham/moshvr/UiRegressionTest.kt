@@ -27,8 +27,8 @@ class ExtraKeysRegressionTest {
     @Test
     fun catalogHasCoreTerminalKeys() {
         val ids = ExtraKeys.catalog.map { it.id }
-        assertTrue(ids.containsAll(listOf("enter", "keyb", "esc", "slash", "tab", "ctrl", "alt", "ctrl-c", "pipe")))
-        assertEquals(15, ExtraKeys.catalog.size)
+        assertTrue(ids.containsAll(listOf("enter", "keyb", "esc", "slash", "tab", "ctrl", "alt", "ctrl-c")))
+        assertEquals(13, ExtraKeys.catalog.size)
         assertEquals(ExtraKeys.catalog.size, ExtraKeys.catalog.map { it.id }.distinct().size)
     }
 

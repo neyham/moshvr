@@ -48,14 +48,13 @@ sealed class ControllerAction {
  *
  * Right: grip held = talk, A = Enter, B = Backspace, stick ←→ herdr tab, ↑↓ herdr workspace,
  *        stick click = Ctrl+C.
- * Left:  X = keyboard, Y = Esc, stick = arrow keys (repeat while held), grip + stick ↑↓ = scroll,
- *        stick click = Tab.
+ * Left:  X = keyboard, Y = Esc, stick = arrow keys (repeat while held), grip + stick ↑↓ = scroll
+ *        (the SDK's native stick scroll is let through while the grip is held), stick click = Tab.
  */
 class ControllerShortcuts {
     private var prev = 0
     private var heldArrow = 0
     private var nextRepeatAt = 0L
-    private var scrollTicks = 0
 
     fun update(state: Int, nowMs: Long): List<ControllerAction> {
         val pressed = state and prev.inv()
@@ -93,16 +92,15 @@ class ControllerShortcuts {
         val fresh = pressed and dir != 0 || dir != heldArrow
         if (fresh) {
             heldArrow = dir
-            scrollTicks = 0
-            nextRepeatAt = nowMs + if (scrolling) SCROLL_REPEAT_MS else ARROW_FIRST_REPEAT_MS
+            nextRepeatAt = nowMs + if (scrolling) SCROLL_FIRST_MS else ARROW_FIRST_REPEAT_MS
+            // Scrolling waits a beat: the SDK's own stick scroll usually arrives and takes over.
+            if (scrolling) return null
         } else {
             if (nowMs < nextRepeatAt) return null
             nextRepeatAt = nowMs + if (scrolling) SCROLL_REPEAT_MS else ARROW_REPEAT_MS
         }
         return if (scrolling) {
-            // Starts fine-grained, speeds up the longer the stick is held.
-            val rows = scrollRows(scrollTicks++)
-            ControllerAction.Scroll(if (dir == Pad.L_UP) -rows else rows)
+            ControllerAction.Scroll(if (dir == Pad.L_UP) -1 else 1)
         } else {
             ControllerAction.Arrow(ARROW_KEYS.getValue(dir))
         }
@@ -111,10 +109,9 @@ class ControllerShortcuts {
     companion object {
         const val ARROW_FIRST_REPEAT_MS = 400L
         const val ARROW_REPEAT_MS = 110L
-        const val SCROLL_REPEAT_MS = 50L
-        const val SCROLL_MAX_ROWS = 8
-
-        fun scrollRows(ticksHeld: Int): Int = (1 + ticksHeld / 3).coerceAtMost(SCROLL_MAX_ROWS)
+        /** Fallback only, one row per tick like the SDK scroll at full stick. */
+        const val SCROLL_FIRST_MS = 120L
+        const val SCROLL_REPEAT_MS = 70L
 
         /** Only triggers click panels, so A and X are free for shortcuts. */
         const val CLICK_BUTTONS = Pad.TRIGGER_L or Pad.TRIGGER_R

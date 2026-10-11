@@ -36,8 +36,6 @@ object ExtraKeys {
         ExtraKeySpec("up", "PgUp", ExtraKeyAction.Scroll(-ExtraKeys.PAGE_ROWS)),
         ExtraKeySpec("right", "TAB▶", ExtraKeyAction.Write(HerdrKeys.nextTab)),
         ExtraKeySpec("ctrl-c", "^C", ExtraKeyAction.Write("\u0003")),
-        ExtraKeySpec("ctrl-d", "^D", ExtraKeyAction.Write("\u0004")),
-        ExtraKeySpec("pipe", "|", ExtraKeyAction.Write("|")),
     )
 
     /** The keys used most in a headset; pinned large at the right edge so they never scroll away. */

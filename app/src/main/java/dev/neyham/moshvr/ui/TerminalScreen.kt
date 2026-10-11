@@ -368,7 +368,7 @@ fun TerminalPane(
                         // In immersive mode the SDK turns either stick into panel scrolls; the sticks
                         // belong to the controller shortcuts there, so drop those scrolls.
                         setOnGenericMotionListener { _, e ->
-                            StickChrome.sticksMapped && e.actionMasked == MotionEvent.ACTION_SCROLL
+                            StickChrome.dropPanelScroll(e.actionMasked, android.os.SystemClock.uptimeMillis())
                         }
                         tag = fontSizePx
                     }

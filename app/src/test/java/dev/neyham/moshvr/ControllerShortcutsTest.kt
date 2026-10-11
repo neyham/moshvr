@@ -3,6 +3,7 @@ package dev.neyham.moshvr
 import android.view.KeyEvent
 import com.meta.spatial.runtime.ButtonBits
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -52,18 +53,33 @@ class ControllerShortcutsTest {
     }
 
     @Test
-    fun leftGripTurnsTheStickIntoAcceleratingScroll() {
+    fun leftGripScrollFallbackIsOneRowAtAnEvenPace() {
         val c = ControllerShortcuts()
         c.update(Pad.GRIP_L, 0)
-        assertEquals(listOf(ControllerAction.Scroll(-1)), c.update(Pad.GRIP_L or Pad.L_UP, 10))
-        var t = 10L
-        var last = 0
-        repeat(30) {
+        // Waits a beat first so the SDK's native stick scroll can take over.
+        assertTrue(c.update(Pad.GRIP_L or Pad.L_UP, 10).isEmpty())
+        assertTrue(c.update(Pad.GRIP_L or Pad.L_UP, 100).isEmpty())
+        var t = 10 + ControllerShortcuts.SCROLL_FIRST_MS
+        repeat(5) {
+            assertEquals(listOf(ControllerAction.Scroll(-1)), c.update(Pad.GRIP_L or Pad.L_UP, t))
             t += ControllerShortcuts.SCROLL_REPEAT_MS
-            last = (c.update(Pad.GRIP_L or Pad.L_UP, t).single() as ControllerAction.Scroll).rows
         }
-        assertEquals(-ControllerShortcuts.SCROLL_MAX_ROWS, last)
-        assertEquals(listOf(ControllerAction.Scroll(1)), c.update(Pad.GRIP_L or Pad.L_DOWN, t + 1))
+    }
+
+    @Test
+    fun nativeStickScrollOnlyPassesWhileTheLeftGripIsHeld() {
+        val sc = dev.neyham.moshvr.ui.StickChrome
+        val scroll = android.view.MotionEvent.ACTION_SCROLL
+        sc.sticksMapped = true
+        sc.nativeScrollAllowed = false
+        assertTrue(sc.dropPanelScroll(scroll, 1_000))
+        sc.nativeScrollAllowed = true
+        assertFalse(sc.dropPanelScroll(scroll, 2_000))
+        assertTrue(sc.nativeScrollActive(2_100))
+        assertFalse(sc.nativeScrollActive(2_500))
+        sc.sticksMapped = false
+        sc.nativeScrollAllowed = false
+        assertFalse(sc.dropPanelScroll(scroll, 3_000)) // 2D mode: untouched
     }
 
     @Test
@@ -80,7 +96,7 @@ class ShortcutsCheatsheetTest {
         val documented = dev.neyham.moshvr.ui.ShortcutsCheatsheet.sections
             .flatMap { it.rows }.joinToString(" ") { it.first }
         dev.neyham.moshvr.ui.ExtraKeys.catalog
-            .filter { it.id in setOf("ctrl-c", "ctrl-d", "pipe", "up", "down") }
+            .filter { it.id in setOf("ctrl-c", "up", "down") }
             .forEach { assertTrue(it.label, documented.contains(it.label)) }
     }
 }

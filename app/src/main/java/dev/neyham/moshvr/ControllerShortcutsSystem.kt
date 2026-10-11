@@ -7,6 +7,7 @@ import com.meta.spatial.core.Query
 import com.meta.spatial.core.SystemBase
 import com.meta.spatial.toolkit.Controller
 import com.meta.spatial.toolkit.ControllerType
+import dev.neyham.moshvr.ui.StickChrome
 
 /**
  * Reads both Touch controllers every frame and turns button edges into [ControllerAction]s.
@@ -27,6 +28,9 @@ class ControllerShortcutsSystem(
                 state = state or controller.buttonState
             }
         }
+        // Left grip held (right stick not pushed up/down): let the SDK's smooth stick scroll through.
+        StickChrome.nativeScrollAllowed = state and Pad.GRIP_L != 0 &&
+            state and (Pad.R_UP or Pad.R_DOWN) == 0
         // Keep edge tracking current even while disabled, so nothing fires on re-enable.
         val actions = shortcuts.update(state, SystemClock.uptimeMillis())
         if (!enabled()) return
