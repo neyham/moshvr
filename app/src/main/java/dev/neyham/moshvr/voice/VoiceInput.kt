@@ -28,6 +28,16 @@ class VoiceInput(
     private val onNeedConsent: () -> Unit = {},
 ) {
     private val recorder = VoiceRecorder()
+    private val dictation = OnDeviceDictation(
+        context = context,
+        onListening = { onRecording(it) },
+        onPartial = { onStatus("… $it") },
+        onFinal = { text ->
+            onStatus(null)
+            onResult(text)
+        },
+        onError = { onStatus(it) },
+    )
     private val main = Handler(Looper.getMainLooper())
     private val stopAtMax = Runnable {
         if (recorder.isRecording) {
@@ -44,11 +54,28 @@ class VoiceInput(
     val usesCloudStt: Boolean
         get() = VoicePolicy.useCloudStt(settingsStore.load().hasApiKey)
 
+    /** No cloud key: Quest's on-device recognizer, so audio never leaves the headset. */
+    val usesOnDevice: Boolean
+        get() = !usesCloudStt && OnDeviceDictation.available(context)
+
+    val needsMic: Boolean
+        get() = usesCloudStt || usesOnDevice
+
     fun start() {
         if (recorder.isRecording) return
         if (!usesCloudStt) {
-            onStatus(null)
-            onFallbackToKeyboard()
+            if (!usesOnDevice) {
+                onStatus(null)
+                onFallbackToKeyboard()
+                return
+            }
+            if (!hasMicPermission) {
+                onStatus(statusForDenied())
+                return
+            }
+            if (dictation.listening) return
+            onStatus(DictationText.LISTENING)
+            dictation.start()
             return
         }
         val settings = settingsStore.load()
@@ -70,6 +97,10 @@ class VoiceInput(
 
     /** User tapped STOP: end the take and upload for transcription. */
     fun stop() {
+        if (dictation.listening) {
+            dictation.stop()
+            return
+        }
         main.removeCallbacks(stopAtMax)
         if (recorder.isRecording) finishCloud()
     }
@@ -82,6 +113,7 @@ class VoiceInput(
         val owner = VoiceSession.isActive(this)
         val gen = generation
         main.removeCallbacks(stopAtMax)
+        dictation.cancel()
         transcribeJob?.cancel()
         transcribeJob = null
         if (recorder.isRecording) recorder.stop()
@@ -100,6 +132,7 @@ class VoiceInput(
         val gen = generation
         VoiceSession.detach(this)
         main.removeCallbacks(stopAtMax)
+        dictation.release()
         transcribeJob?.cancel()
         transcribeJob = null
         if (recorder.isRecording) recorder.stop()

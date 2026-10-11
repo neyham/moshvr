@@ -207,14 +207,15 @@ object VoicePolicy {
 }
 
 /**
- * Controller shortcuts, so the two most used actions need no aiming:
- * X / grips toggle voice (or open the keyboard when no cloud key is set),
- * B or Y sends Enter, and B cancels while voice is recording or transcribing.
+ * Controller shortcuts, modelled on the user's voice-remote layout, so nothing needs aiming:
+ * X / grips toggle voice, Y opens the keyboard, B is Enter (sends a dictated draft),
+ * and B cancels while voice is recording or transcribing.
  */
 object VoicePtt {
     @Volatile var onToggle: (() -> Unit)? = null
     @Volatile var onCancel: (() -> Unit)? = null
     @Volatile var onEnter: (() -> Unit)? = null
+    @Volatile var onKeyboard: (() -> Unit)? = null
     @Volatile var isBusy: () -> Boolean = { false }
     @Volatile private var owner: Any? = null
 
@@ -224,11 +225,13 @@ object VoicePtt {
         cancel: () -> Unit,
         enter: () -> Unit = {},
         busy: () -> Boolean = { false },
+        keyboard: () -> Unit = {},
     ) {
         owner = token
         onToggle = toggle
         onCancel = cancel
         onEnter = enter
+        onKeyboard = keyboard
         isBusy = busy
     }
 
@@ -238,6 +241,7 @@ object VoicePtt {
             onToggle = null
             onCancel = null
             onEnter = null
+            onKeyboard = null
             isBusy = { false }
         }
     }
@@ -249,8 +253,9 @@ object VoicePtt {
 
     fun isCancelKey(keyCode: Int): Boolean = keyCode == KeyEvent.KEYCODE_BUTTON_B
 
-    fun isEnterKey(keyCode: Int): Boolean =
-        keyCode == KeyEvent.KEYCODE_BUTTON_B || keyCode == KeyEvent.KEYCODE_BUTTON_Y
+    fun isEnterKey(keyCode: Int): Boolean = keyCode == KeyEvent.KEYCODE_BUTTON_B
+
+    fun isKeyboardKey(keyCode: Int): Boolean = keyCode == KeyEvent.KEYCODE_BUTTON_Y
 
     fun dispatch(source: Int, keyCode: Int, down: Boolean, repeat: Int): Boolean {
         if (!TerminalPointer.shouldSwallowControllerKey(source, keyCode)) return false
@@ -260,6 +265,10 @@ object VoicePtt {
         }
         if (isEnterKey(keyCode)) {
             if (down && repeat == 0) onEnter?.invoke()
+            return true
+        }
+        if (isKeyboardKey(keyCode)) {
+            if (down && repeat == 0) onKeyboard?.invoke()
             return true
         }
         if (!isHoldKey(keyCode)) return false

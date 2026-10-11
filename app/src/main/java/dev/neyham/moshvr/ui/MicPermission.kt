@@ -25,6 +25,13 @@ object MicPermission {
         "The in-app microphone records a short clip so cloud speech-to-text can turn it into text. " +
             "Audio, the model/resource ID, and your API credentials are sent to the HTTPS endpoint you configured. " +
             "The terminal works without a microphone."
+    const val ON_DEVICE_RATIONALE =
+        "MIC uses the Quest's built-in speech recognizer. Speech is turned into text on the headset; " +
+            "moshVR never records, stores or uploads the audio. The text goes into the composer and is sent " +
+            "only when you press Enter. The terminal works without a microphone."
+
+    fun rationale(cloud: Boolean): String = if (cloud) RATIONALE else ON_DEVICE_RATIONALE
+
     const val NEEDED = "Microphone permission needed"
     const val DENIED = "Microphone denied. Tap MIC to see why and try again."
     const val DONT_ASK_AGAIN =

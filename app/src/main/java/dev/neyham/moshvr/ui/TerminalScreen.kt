@@ -192,7 +192,7 @@ fun TerminalPane(
     }
     fun beginTalk() {
         if (transcribing) return
-        if (voice.usesCloudStt && !voice.hasMicPermission) {
+        if (voice.needsMic && !voice.hasMicPermission) {
             when (MicPermission.lastDecision) {
                 MicPermission.Decision.DontAskAgain -> {
                     voiceStatus = MicPermission.DONT_ASK_AGAIN
@@ -222,7 +222,18 @@ fun TerminalPane(
             voice,
             toggle = { toggleTalk() },
             cancel = { voice.cancel() },
-            enter = { open.session.write("\r") },
+            // Like the remote's OK: send what was dictated, or a bare Enter.
+            enter = {
+                val draft = open.composerDraft.trim()
+                if (draft.isNotEmpty() && open.session.isRunning) {
+                    open.session.write(draft + "\r")
+                    open.composerDraft = ""
+                    composerOpen = false
+                } else {
+                    open.session.write("\r")
+                }
+            },
+            keyboard = { showComposerKeyboard() },
             busy = { recording || transcribing },
         )
         onDispose {
@@ -235,7 +246,7 @@ fun TerminalPane(
             onDismissRequest = { showMicRationale = false },
             containerColor = MoshVrColors.Surface,
             title = { Text("Microphone") },
-            text = { Text(MicPermission.RATIONALE, color = MoshVrColors.TextSecondary) },
+            text = { Text(MicPermission.rationale(voice.usesCloudStt), color = MoshVrColors.TextSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     showMicRationale = false
@@ -398,7 +409,7 @@ fun TerminalPane(
         }
         ExtraKeysRow(
             keys = keys,
-            cloudVoice = voice.usesCloudStt,
+            micVoice = voice.needsMic,
             recording = recording,
             transcribing = transcribing,
             onWrite = { open.session.write(it) },
@@ -432,7 +443,7 @@ fun TerminalPane(
 @Composable
 private fun ExtraKeysRow(
     keys: ModifierKeysState,
-    cloudVoice: Boolean,
+    micVoice: Boolean,
     recording: Boolean,
     transcribing: Boolean,
     onWrite: (String) -> Unit,
@@ -482,10 +493,10 @@ private fun ExtraKeysRow(
         if (recording || transcribing) {
             ExtraKey("X", active = true, primary = true) { onCancelVoice() }
         }
-        ExtraKeys.visiblePrimary(cloudVoice).forEach { spec ->
+        ExtraKeys.visiblePrimary(micVoice).forEach { spec ->
             val active = spec.action is ExtraKeyAction.Mic && (recording || transcribing)
             ExtraKey(
-                ExtraKeys.primaryLabel(spec, cloudVoice, recording, transcribing),
+                ExtraKeys.primaryLabel(spec, micVoice, recording, transcribing),
                 active = active,
                 primary = true,
                 minWidth = if (spec.id == "enter") 132.dp else 96.dp,

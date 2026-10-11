@@ -47,14 +47,14 @@ object ExtraKeys {
 
     val secondary: List<ExtraKeySpec> = catalog.filter { it.id !in primaryIds }
 
-    /** Without a cloud speech key MIC just opens the keyboard, so one key covers both. */
-    fun visiblePrimary(cloudVoice: Boolean): List<ExtraKeySpec> =
-        if (cloudVoice) primary else primary.filter { it.id != "mic" }
+    /** Without any speech recognizer MIC just opens the keyboard, so one key covers both. */
+    fun visiblePrimary(micVoice: Boolean): List<ExtraKeySpec> =
+        if (micVoice) primary else primary.filter { it.id != "mic" }
 
-    fun primaryLabel(spec: ExtraKeySpec, cloudVoice: Boolean, recording: Boolean, transcribing: Boolean): String =
+    fun primaryLabel(spec: ExtraKeySpec, micVoice: Boolean, recording: Boolean, transcribing: Boolean): String =
         when (spec.action) {
-            ExtraKeyAction.Mic -> micLabel(recording, transcribing)
-            ExtraKeyAction.Keyboard -> if (cloudVoice) "⌨ KEYB" else "⌨ KEYB / 🎤"
+            ExtraKeyAction.Mic -> "🎤 " + micLabel(recording, transcribing)
+            ExtraKeyAction.Keyboard -> if (micVoice) "⌨ KEYB" else "⌨ KEYB / 🎤"
             else -> spec.label
         }
 
