@@ -33,8 +33,12 @@ class ControllerShortcutsTest {
         assertEquals(listOf(ControllerAction.Enter), c.update(Pad.A, 48))
         assertEquals(emptyList<ControllerAction>(), c.update(Pad.A, 64)) // held: once only
         assertEquals(listOf(ControllerAction.Backspace), c.update(Pad.B, 80))
-        assertEquals(listOf(ControllerAction.HerdrTab(-1)), c.update(Pad.R_LEFT, 96))
-        assertEquals(listOf(ControllerAction.HerdrWorkspace(1)), c.update(Pad.R_DOWN, 112))
+        assertTrue(c.update(Pad.R_LEFT, 96).isEmpty()) // settling
+        assertEquals(listOf(ControllerAction.HerdrTab(-1)), c.update(Pad.R_LEFT, 96 + ControllerShortcuts.RIGHT_SETTLE_MS))
+        c.update(0, 200)
+        c.update(Pad.R_DOWN, 210)
+        assertEquals(listOf(ControllerAction.HerdrWorkspace(1)), c.update(Pad.R_DOWN, 300))
+        c.update(0, 310)
         assertEquals(listOf(ControllerAction.CtrlC), c.update(Pad.R_CLICK, 128))
     }
 
@@ -68,6 +72,24 @@ class ControllerShortcutsTest {
             assertEquals(listOf(ControllerAction.Scroll(-1)), c.update(Pad.L_UP, t))
             t += ControllerShortcuts.SCROLL_REPEAT_MS
         }
+    }
+
+    @Test
+    fun rightStickPushSwitchesOnceOnTheAxisItSettlesOn() {
+        val c = ControllerShortcuts()
+        val all = mutableListOf<ControllerAction>()
+        // Pushed up, the side axis brushing its threshold on the way, then wandering sideways.
+        val push = listOf(Pad.R_UP or Pad.R_RIGHT, Pad.R_UP, Pad.R_UP, Pad.R_UP, Pad.R_UP, Pad.R_UP or Pad.R_LEFT, Pad.R_LEFT, Pad.R_LEFT, Pad.R_LEFT, Pad.R_UP)
+        push.forEachIndexed { i, state -> all += c.update(state, i * 20L) }
+        assertEquals(listOf<ControllerAction>(ControllerAction.HerdrWorkspace(-1)), all)
+        // Back to centre re-arms; a push that stays diagonal does nothing.
+        all.clear()
+        c.update(0, 200)
+        for (t in 210L..600L step 20) all += c.update(Pad.R_DOWN or Pad.R_RIGHT, t)
+        assertTrue(all.isEmpty())
+        c.update(0, 620)
+        c.update(Pad.R_RIGHT, 640)
+        assertEquals(listOf(ControllerAction.HerdrTab(1)), c.update(Pad.R_RIGHT, 700))
     }
 
     @Test

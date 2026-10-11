@@ -56,6 +56,9 @@ class ControllerShortcuts {
     private var prev = 0
     private var heldArrow = 0
     private var nextRepeatAt = 0L
+    private var rightDirs = 0
+    private var rightSince = 0L
+    private var rightDone = false
 
     fun update(state: Int, nowMs: Long): List<ControllerAction> {
         val pressed = state and prev.inv()
@@ -69,10 +72,7 @@ class ControllerShortcuts {
         if (edge(Pad.A)) out += ControllerAction.Enter
         if (edge(Pad.B)) out += ControllerAction.Backspace
         if (edge(Pad.R_CLICK)) out += ControllerAction.CtrlC
-        if (edge(Pad.R_LEFT)) out += ControllerAction.HerdrTab(-1)
-        if (edge(Pad.R_RIGHT)) out += ControllerAction.HerdrTab(1)
-        if (edge(Pad.R_UP)) out += ControllerAction.HerdrWorkspace(-1)
-        if (edge(Pad.R_DOWN)) out += ControllerAction.HerdrWorkspace(1)
+        rightStick(state, nowMs)?.let { out += it }
 
         if (edge(Pad.X)) out += ControllerAction.ToggleKeyboard
         if (edge(Pad.Y)) out += ControllerAction.Esc
@@ -80,6 +80,33 @@ class ControllerShortcuts {
 
         leftStick(state, pressed, nowMs)?.let { out += it }
         return out
+    }
+
+    /**
+     * Right stick: one herdr switch per push. A push rarely starts on one axis (the other one
+     * crosses its threshold a frame later), so the direction must settle on a single axis first,
+     * and nothing more fires until the stick is back in the centre. A push that stays diagonal
+     * does nothing rather than guess.
+     */
+    private fun rightStick(state: Int, nowMs: Long): ControllerAction? {
+        val dirs = state and RIGHT_DIRS
+        if (dirs != rightDirs) {
+            rightDirs = dirs
+            rightSince = nowMs
+        }
+        if (dirs == 0) {
+            rightDone = false
+            return null
+        }
+        if (rightDone) return null
+        if (Integer.bitCount(dirs) != 1 || nowMs - rightSince < RIGHT_SETTLE_MS) return null
+        rightDone = true
+        return when (dirs) {
+            Pad.R_LEFT -> ControllerAction.HerdrTab(-1)
+            Pad.R_RIGHT -> ControllerAction.HerdrTab(1)
+            Pad.R_UP -> ControllerAction.HerdrWorkspace(-1)
+            else -> ControllerAction.HerdrWorkspace(1)
+        }
     }
 
     /**
@@ -121,6 +148,9 @@ class ControllerShortcuts {
         const val SCROLL_FIRST_MS = 120L
         const val SCROLL_REPEAT_MS = 70L
         private const val ARROW_MODE = 1 shl 30
+        /** How long a right-stick push must sit on one single axis before it counts. */
+        const val RIGHT_SETTLE_MS = 50L
+        private const val RIGHT_DIRS = Pad.R_LEFT or Pad.R_RIGHT or Pad.R_UP or Pad.R_DOWN
 
         /** Only triggers click panels, so A and X are free for shortcuts. */
         const val CLICK_BUTTONS = Pad.TRIGGER_L or Pad.TRIGGER_R
