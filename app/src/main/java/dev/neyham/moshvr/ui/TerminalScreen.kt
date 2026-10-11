@@ -218,7 +218,13 @@ fun TerminalPane(
 
     DisposableEffect(voice) {
         VoiceSession.attach(voice, context)
-        VoicePtt.bind(voice, toggle = { toggleTalk() }, cancel = { voice.cancel() })
+        VoicePtt.bind(
+            voice,
+            toggle = { toggleTalk() },
+            cancel = { voice.cancel() },
+            enter = { open.session.write("\r") },
+            busy = { recording || transcribing },
+        )
         onDispose {
             VoicePtt.unbind(voice)
             voice.release()
@@ -392,6 +398,7 @@ fun TerminalPane(
         }
         ExtraKeysRow(
             keys = keys,
+            cloudVoice = voice.usesCloudStt,
             recording = recording,
             transcribing = transcribing,
             onWrite = { open.session.write(it) },
@@ -425,6 +432,7 @@ fun TerminalPane(
 @Composable
 private fun ExtraKeysRow(
     keys: ModifierKeysState,
+    cloudVoice: Boolean,
     recording: Boolean,
     transcribing: Boolean,
     onWrite: (String) -> Unit,
@@ -434,45 +442,54 @@ private fun ExtraKeysRow(
     onScroll: (Int) -> Unit,
     onKeyboard: () -> Unit,
 ) {
+    fun run(action: ExtraKeyAction) {
+        when (action) {
+            ExtraKeyAction.Mic -> onMic()
+            ExtraKeyAction.Keyboard -> onKeyboard()
+            ExtraKeyAction.ToggleCtrl -> keys.ctrl = !keys.ctrl
+            ExtraKeyAction.ToggleAlt -> keys.alt = !keys.alt
+            is ExtraKeyAction.Write -> onWrite(action.payload)
+            is ExtraKeyAction.KeyCode -> onKeyCode(action.code)
+            is ExtraKeyAction.Scroll -> onScroll(action.rows)
+            ExtraKeyAction.CancelVoice -> onCancelVoice()
+        }
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(MoshVrColors.Surface)
-            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 6.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (recording || transcribing) {
-            ExtraKey("X", active = true) { onCancelVoice() }
-        }
-        ExtraKeys.catalog.forEach { spec ->
-            val label = if (spec.action is ExtraKeyAction.Mic) {
-                ExtraKeys.micLabel(recording, transcribing)
-            } else {
-                spec.label
-            }
-            val active = when (spec.action) {
-                ExtraKeyAction.ToggleCtrl -> keys.ctrl
-                ExtraKeyAction.ToggleAlt -> keys.alt
-                ExtraKeyAction.Mic -> recording || transcribing
-                else -> false
-            }
-            ExtraKey(
-                label,
-                active = active,
-            ) {
-                when (val action = spec.action) {
-                    ExtraKeyAction.Mic -> onMic()
-                    ExtraKeyAction.Keyboard -> onKeyboard()
-                    ExtraKeyAction.ToggleCtrl -> keys.ctrl = !keys.ctrl
-                    ExtraKeyAction.ToggleAlt -> keys.alt = !keys.alt
-                    is ExtraKeyAction.Write -> onWrite(action.payload)
-                    is ExtraKeyAction.KeyCode -> onKeyCode(action.code)
-                    is ExtraKeyAction.Scroll -> onScroll(action.rows)
-                    ExtraKeyAction.CancelVoice -> onCancelVoice()
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ExtraKeys.secondary.forEach { spec ->
+                val active = when (spec.action) {
+                    ExtraKeyAction.ToggleCtrl -> keys.ctrl
+                    ExtraKeyAction.ToggleAlt -> keys.alt
+                    else -> false
                 }
+                ExtraKey(spec.label, active = active) { run(spec.action) }
             }
+        }
+        // Pinned at the right edge: same place every time, big enough to hit without aiming.
+        if (recording || transcribing) {
+            ExtraKey("X", active = true, primary = true) { onCancelVoice() }
+        }
+        ExtraKeys.visiblePrimary(cloudVoice).forEach { spec ->
+            val active = spec.action is ExtraKeyAction.Mic && (recording || transcribing)
+            ExtraKey(
+                ExtraKeys.primaryLabel(spec, cloudVoice, recording, transcribing),
+                active = active,
+                primary = true,
+                minWidth = if (spec.id == "enter") 132.dp else 96.dp,
+            ) { run(spec.action) }
         }
     }
 }
@@ -481,16 +498,19 @@ private fun ExtraKeysRow(
 private fun ExtraKey(
     label: String,
     active: Boolean = false,
+    primary: Boolean = false,
+    minWidth: androidx.compose.ui.unit.Dp = 40.dp,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(6.dp)
+    val shape = RoundedCornerShape(if (primary) 10.dp else 6.dp)
+    val edge = if (active || primary) MoshVrColors.Green else MoshVrColors.SurfaceBright
     Box(
         modifier = Modifier
-            .heightIn(min = 40.dp)
-            .widthIn(min = 40.dp)
+            .heightIn(min = if (primary) 56.dp else 40.dp)
+            .widthIn(min = minWidth)
             .clip(shape)
             .background(if (active) MoshVrColors.SurfaceBright else Color(0xFF0D1410))
-            .border(1.dp, if (active) MoshVrColors.Green else MoshVrColors.SurfaceBright, shape)
+            .border(if (primary) 2.dp else 1.dp, edge, shape)
             .focusProperties { canFocus = false }
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 6.dp),
@@ -498,9 +518,9 @@ private fun ExtraKey(
     ) {
         Text(
             label,
-            color = if (active) MoshVrColors.Green else MoshVrColors.TextSecondary,
+            color = if (active || primary) MoshVrColors.Green else MoshVrColors.TextSecondary,
             fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp,
+            fontSize = if (primary) 16.sp else 11.sp,
         )
     }
 }

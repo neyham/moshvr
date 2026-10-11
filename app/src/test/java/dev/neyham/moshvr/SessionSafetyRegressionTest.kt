@@ -145,6 +145,27 @@ class VoiceOwnerIsolationTest {
     }
 
     @Test
+    fun controllerBSendsEnterUnlessVoiceIsBusy() {
+        val token = Any()
+        var enters = 0
+        var cancels = 0
+        var busy = false
+        VoicePtt.bind(token, toggle = {}, cancel = { cancels++ }, enter = { enters++ }, busy = { busy })
+        val src = android.view.InputDevice.SOURCE_GAMEPAD
+        val b = android.view.KeyEvent.KEYCODE_BUTTON_B
+        val y = android.view.KeyEvent.KEYCODE_BUTTON_Y
+        assertTrue(VoicePtt.dispatch(src, b, true, 0))
+        assertTrue(VoicePtt.dispatch(src, b, true, 1)) // auto-repeat must not send a second Enter
+        assertTrue(VoicePtt.dispatch(src, y, true, 0))
+        assertEquals(2, enters)
+        busy = true
+        assertTrue(VoicePtt.dispatch(src, b, true, 0))
+        assertEquals(2, enters)
+        assertEquals(1, cancels)
+        VoicePtt.unbind(token)
+    }
+
+    @Test
     fun abandonFromOldHostDoesNotTouchNewOwner() {
         val oldHost = Any()
         val newHost = Any()

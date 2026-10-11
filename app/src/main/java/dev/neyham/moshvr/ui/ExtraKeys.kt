@@ -40,6 +40,24 @@ object ExtraKeys {
         ExtraKeySpec("minus", "-", ExtraKeyAction.Write("-")),
     )
 
+    /** The keys used most in a headset; pinned large at the right edge so they never scroll away. */
+    val primaryIds = listOf("mic", "keyb", "enter")
+
+    val primary: List<ExtraKeySpec> = primaryIds.map { id -> catalog.first { it.id == id } }
+
+    val secondary: List<ExtraKeySpec> = catalog.filter { it.id !in primaryIds }
+
+    /** Without a cloud speech key MIC just opens the keyboard, so one key covers both. */
+    fun visiblePrimary(cloudVoice: Boolean): List<ExtraKeySpec> =
+        if (cloudVoice) primary else primary.filter { it.id != "mic" }
+
+    fun primaryLabel(spec: ExtraKeySpec, cloudVoice: Boolean, recording: Boolean, transcribing: Boolean): String =
+        when (spec.action) {
+            ExtraKeyAction.Mic -> micLabel(recording, transcribing)
+            ExtraKeyAction.Keyboard -> if (cloudVoice) "⌨ KEYB" else "⌨ KEYB / 🎤"
+            else -> spec.label
+        }
+
     fun micLabel(recording: Boolean, transcribing: Boolean): String = when {
         transcribing -> "WAIT"
         recording -> "STOP"

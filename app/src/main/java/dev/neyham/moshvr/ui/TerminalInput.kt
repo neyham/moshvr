@@ -152,16 +152,30 @@ object VoicePolicy {
     fun timeoutUploads(): Boolean = false
 }
 
-/** Tap-to-toggle talk from the MIC key or a controller face/grip button. */
+/**
+ * Controller shortcuts, so the two most used actions need no aiming:
+ * X / grips toggle voice (or open the keyboard when no cloud key is set),
+ * B or Y sends Enter, and B cancels while voice is recording or transcribing.
+ */
 object VoicePtt {
     @Volatile var onToggle: (() -> Unit)? = null
     @Volatile var onCancel: (() -> Unit)? = null
+    @Volatile var onEnter: (() -> Unit)? = null
+    @Volatile var isBusy: () -> Boolean = { false }
     @Volatile private var owner: Any? = null
 
-    fun bind(token: Any, toggle: () -> Unit, cancel: () -> Unit) {
+    fun bind(
+        token: Any,
+        toggle: () -> Unit,
+        cancel: () -> Unit,
+        enter: () -> Unit = {},
+        busy: () -> Boolean = { false },
+    ) {
         owner = token
         onToggle = toggle
         onCancel = cancel
+        onEnter = enter
+        isBusy = busy
     }
 
     fun unbind(token: Any) {
@@ -169,6 +183,8 @@ object VoicePtt {
             owner = null
             onToggle = null
             onCancel = null
+            onEnter = null
+            isBusy = { false }
         }
     }
 
@@ -179,10 +195,18 @@ object VoicePtt {
 
     fun isCancelKey(keyCode: Int): Boolean = keyCode == KeyEvent.KEYCODE_BUTTON_B
 
+    fun isEnterKey(keyCode: Int): Boolean =
+        keyCode == KeyEvent.KEYCODE_BUTTON_B || keyCode == KeyEvent.KEYCODE_BUTTON_Y
+
     fun dispatch(source: Int, keyCode: Int, down: Boolean, repeat: Int): Boolean {
         if (!TerminalPointer.shouldSwallowControllerKey(source, keyCode)) return false
-        if (isCancelKey(keyCode)) {
+        if (down && repeat == 0) runCatching { android.util.Log.d("moshvr-keys", "controller key $keyCode source=$source") }
+        if (isCancelKey(keyCode) && isBusy()) {
             if (down && repeat == 0) onCancel?.invoke()
+            return true
+        }
+        if (isEnterKey(keyCode)) {
+            if (down && repeat == 0) onEnter?.invoke()
             return true
         }
         if (!isHoldKey(keyCode)) return false
