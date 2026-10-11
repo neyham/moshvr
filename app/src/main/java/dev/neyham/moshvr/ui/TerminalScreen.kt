@@ -45,7 +45,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -171,10 +173,11 @@ fun TerminalPane(
     val context = LocalContext.current
     val composerFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    var composerFocusRequests by remember { mutableIntStateOf(0) }
     fun showComposerKeyboard() {
         composerOpen = true
-        runCatching { composerFocus.requestFocus() }
-        keyboard?.show()
+        // The composer may not exist yet; focus it once it has been composed (effect below).
+        composerFocusRequests++
     }
     val voice = remember(open.id) {
         VoiceInput(
@@ -444,6 +447,12 @@ fun TerminalPane(
             onKeyboard = { showComposerKeyboard() },
         )
         if (composerOpen || composerText.isNotEmpty() || voiceStatus != null) {
+            LaunchedEffect(composerFocusRequests) {
+                if (composerFocusRequests == 0) return@LaunchedEffect
+                withFrameNanos { }
+                runCatching { composerFocus.requestFocus() }
+                keyboard?.show()
+            }
             CommandComposer(
                 text = composerText,
                 onTextChange = { open.composerDraft = it },

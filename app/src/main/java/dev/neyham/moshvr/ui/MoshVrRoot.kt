@@ -64,11 +64,12 @@ fun MoshVrRoot(
     var knownHosts by remember { mutableStateOf(sessionManager.knownHosts.list()) }
     var fontSizePx by rememberSaveable { mutableIntStateOf(initialFontSizePx) }
     DisposableEffect(sessionManager) {
+        // Only while a terminal is on screen, not into a session hidden behind the connections list.
         val cycle: (Int) -> Unit = { dir ->
-            sessionManager.active?.session?.write(HerdrKeys.tabChord(dir))
+            if (VoicePtt.hasTerminal()) sessionManager.active?.session?.write(HerdrKeys.tabChord(dir))
         }
         val workspace: (Int) -> Unit = { dir ->
-            sessionManager.active?.session?.write(HerdrKeys.workspaceChord(dir))
+            if (VoicePtt.hasTerminal()) sessionManager.active?.session?.write(HerdrKeys.workspaceChord(dir))
         }
         StickChrome.bindCycleTab(cycle)
         StickChrome.bindCycleWorkspace(workspace)

@@ -173,6 +173,8 @@ class ImmersiveActivity : AppSystemActivity() {
     }
 
     private fun runControllerAction(action: ControllerAction) {
+        // On the connections list the active session is hidden; never type into it.
+        if (!VoicePtt.hasTerminal()) return
         val app = application as MoshVrApp
         val open = app.sessionManager.active ?: return
         val session = open.session

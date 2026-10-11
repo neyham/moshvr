@@ -110,3 +110,37 @@ class ConnectFlowReviewTest {
         assertTrue(text.contains("transport.resize(this.columns, this.rows)"))
     }
 }
+
+/** Regressions from the third 2026-10-11 review pass. */
+class InputSafetyReviewTest {
+
+    private fun read(path: String): String =
+        listOf(File(path), File(path.removePrefix("app/")), File("../$path")).firstOrNull { it.exists() }?.readText()
+            ?: error("missing $path")
+
+    @Test
+    fun controllerInputNeedsAVisibleTerminal() {
+        val ptt = dev.neyham.moshvr.ui.VoicePtt
+        val token = Any()
+        ptt.unbind(token)
+        assertFalse(ptt.hasTerminal())
+        ptt.bind(token, toggle = {}, cancel = {})
+        assertTrue(ptt.hasTerminal())
+        ptt.unbind(token)
+        assertFalse(ptt.hasTerminal())
+        assertTrue(read("app/src/main/java/dev/neyham/moshvr/ImmersiveActivity.kt").contains("if (!VoicePtt.hasTerminal()) return"))
+    }
+
+    @Test
+    fun sessionInputNeverBlocksTheCaller() {
+        val src = read("terminal-emulator/src/main/java/com/termux/terminal/TerminalSession.java")
+        assertTrue(src.contains("mInputPump.execute(() -> mTerminalToProcessIOQueue.write("))
+    }
+
+    @Test
+    fun lateRecognizerCallbacksAreDropped() {
+        val src = read("app/src/main/java/dev/neyham/moshvr/voice/OnDeviceDictation.kt")
+        assertTrue(src.contains("TakeListener(++take)"))
+        assertEquals(3, Regex("if \\(!current\\) return").findAll(src).count())
+    }
+}

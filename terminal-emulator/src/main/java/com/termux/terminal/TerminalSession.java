@@ -16,6 +16,9 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A terminal session, consisting of a process coupled to a terminal interface.
@@ -180,11 +183,26 @@ public class TerminalSession extends TerminalOutput {
 
     }
 
+    /**
+     * MODIFIED (moshVR): input goes through one background thread, in order. The queue holds
+     * 4 KB and blocks when full (e.g. a large paste while still connecting); blocking the main
+     * thread there would also stop the exit message that closes the queue.
+     */
+    private final ThreadPoolExecutor mInputPump = new ThreadPoolExecutor(
+        0, 1, 5, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+        runnable -> {
+            Thread thread = new Thread(runnable, "TermSessionInput");
+            thread.setDaemon(true);
+            return thread;
+        });
+
     /** Write data to the shell process. */
     @Override
     public void write(byte[] data, int offset, int count) {
         if (mShellPid > 0) {
-            mTerminalToProcessIOQueue.write(data, offset, count);
+            final byte[] copy = new byte[count];
+            System.arraycopy(data, offset, copy, 0, count);
+            mInputPump.execute(() -> mTerminalToProcessIOQueue.write(copy, 0, copy.length));
         } else if (mShellPid < 0 && containsCarriageReturn(data, offset, count)) {
             // MODIFIED (moshVR): the exit banner says "press Enter"; let the client act on it.
             mClient.onEnterAfterFinished(this);

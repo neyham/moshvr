@@ -270,6 +270,9 @@ object VoicePtt {
         isBusy = busy
     }
 
+    /** A terminal is on screen (it binds these callbacks); none on the connections list. */
+    fun hasTerminal(): Boolean = owner != null
+
     fun unbind(token: Any) {
         if (owner === token) {
             owner = null

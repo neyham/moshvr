@@ -23,10 +23,13 @@ class OnDeviceDictation(
     var listening = false
         private set
 
+    /** Each take gets its own listener; callbacks from a cancelled or older take are dropped. */
+    private var take = 0
+
     fun start() {
         if (listening) return
         val r = recognizer ?: create().also { recognizer = it }
-        r.setRecognitionListener(listener)
+        r.setRecognitionListener(TakeListener(++take))
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
@@ -44,6 +47,7 @@ class OnDeviceDictation(
     /** Drop the take without a result. */
     fun cancel() {
         if (!listening) return
+        take++
         recognizer?.cancel()
         finish()
     }
@@ -64,7 +68,9 @@ class OnDeviceDictation(
     // what the MIC promises. Without it, MIC falls back to the system keyboard instead.
     private fun create(): SpeechRecognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
 
-    private val listener = object : RecognitionListener {
+    private inner class TakeListener(private val id: Int) : RecognitionListener {
+        private val current get() = listening && id == take
+
         override fun onReadyForSpeech(params: Bundle?) {}
         override fun onBeginningOfSpeech() {}
         override fun onRmsChanged(rmsdB: Float) {}
@@ -73,15 +79,18 @@ class OnDeviceDictation(
         override fun onEvent(eventType: Int, params: Bundle?) {}
 
         override fun onPartialResults(partialResults: Bundle?) {
+            if (!current) return
             best(partialResults)?.let(onPartial)
         }
 
         override fun onResults(results: Bundle?) {
+            if (!current) return
             finish()
             best(results)?.let(onFinal) ?: onError(DictationText.NO_SPEECH)
         }
 
         override fun onError(error: Int) {
+            if (!current) return
             finish()
             onError(DictationText.forError(error))
         }
