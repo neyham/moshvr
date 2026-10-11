@@ -52,12 +52,18 @@ class ControllerShortcutsTest {
     }
 
     @Test
-    fun leftGripTurnsTheStickIntoScrolling() {
+    fun leftGripTurnsTheStickIntoAcceleratingScroll() {
         val c = ControllerShortcuts()
         c.update(Pad.GRIP_L, 0)
-        assertEquals(listOf(ControllerAction.Scroll(-ControllerShortcuts.SCROLL_ROWS)), c.update(Pad.GRIP_L or Pad.L_UP, 10))
-        assertEquals(1, c.update(Pad.GRIP_L or Pad.L_UP, 10 + ControllerShortcuts.SCROLL_REPEAT_MS).size)
-        assertEquals(listOf(ControllerAction.Scroll(ControllerShortcuts.SCROLL_ROWS)), c.update(Pad.GRIP_L or Pad.L_DOWN, 200))
+        assertEquals(listOf(ControllerAction.Scroll(-1)), c.update(Pad.GRIP_L or Pad.L_UP, 10))
+        var t = 10L
+        var last = 0
+        repeat(30) {
+            t += ControllerShortcuts.SCROLL_REPEAT_MS
+            last = (c.update(Pad.GRIP_L or Pad.L_UP, t).single() as ControllerAction.Scroll).rows
+        }
+        assertEquals(-ControllerShortcuts.SCROLL_MAX_ROWS, last)
+        assertEquals(listOf(ControllerAction.Scroll(1)), c.update(Pad.GRIP_L or Pad.L_DOWN, t + 1))
     }
 
     @Test
@@ -65,5 +71,16 @@ class ControllerShortcutsTest {
         val c = ControllerShortcuts()
         assertTrue(c.update(Pad.TRIGGER_L or Pad.TRIGGER_R, 0).isEmpty())
         assertEquals(Pad.TRIGGER_L or Pad.TRIGGER_R, ControllerShortcuts.CLICK_BUTTONS)
+    }
+}
+
+class ShortcutsCheatsheetTest {
+    @Test
+    fun cheatsheetExplainsEveryBottomBarKey() {
+        val documented = dev.neyham.moshvr.ui.ShortcutsCheatsheet.sections
+            .flatMap { it.rows }.joinToString(" ") { it.first }
+        dev.neyham.moshvr.ui.ExtraKeys.catalog
+            .filter { it.id in setOf("ctrl-c", "ctrl-d", "pipe", "up", "down") }
+            .forEach { assertTrue(it.label, documented.contains(it.label)) }
     }
 }

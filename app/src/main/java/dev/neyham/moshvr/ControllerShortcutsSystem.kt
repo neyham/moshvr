@@ -1,5 +1,7 @@
 package dev.neyham.moshvr
 
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import com.meta.spatial.core.Query
 import com.meta.spatial.core.SystemBase
@@ -15,6 +17,7 @@ class ControllerShortcutsSystem(
     private val onAction: (ControllerAction) -> Unit,
 ) : SystemBase() {
     private val shortcuts = ControllerShortcuts()
+    private val main = Handler(Looper.getMainLooper())
 
     override fun execute() {
         var state = 0
@@ -29,7 +32,8 @@ class ControllerShortcutsSystem(
         if (!enabled()) return
         actions.forEach { action ->
             runCatching { android.util.Log.d("moshvr-keys", "vr pad $action state=0x${Integer.toHexString(state)}") }
-            onAction(action)
+            // Actions touch views and Compose state: always run them on the main thread.
+            if (Looper.myLooper() == Looper.getMainLooper()) onAction(action) else main.post { onAction(action) }
         }
     }
 }

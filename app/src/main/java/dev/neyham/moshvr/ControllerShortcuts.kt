@@ -55,6 +55,7 @@ class ControllerShortcuts {
     private var prev = 0
     private var heldArrow = 0
     private var nextRepeatAt = 0L
+    private var scrollTicks = 0
 
     fun update(state: Int, nowMs: Long): List<ControllerAction> {
         val pressed = state and prev.inv()
@@ -92,13 +93,16 @@ class ControllerShortcuts {
         val fresh = pressed and dir != 0 || dir != heldArrow
         if (fresh) {
             heldArrow = dir
+            scrollTicks = 0
             nextRepeatAt = nowMs + if (scrolling) SCROLL_REPEAT_MS else ARROW_FIRST_REPEAT_MS
         } else {
             if (nowMs < nextRepeatAt) return null
             nextRepeatAt = nowMs + if (scrolling) SCROLL_REPEAT_MS else ARROW_REPEAT_MS
         }
         return if (scrolling) {
-            ControllerAction.Scroll(if (dir == Pad.L_UP) -SCROLL_ROWS else SCROLL_ROWS)
+            // Starts fine-grained, speeds up the longer the stick is held.
+            val rows = scrollRows(scrollTicks++)
+            ControllerAction.Scroll(if (dir == Pad.L_UP) -rows else rows)
         } else {
             ControllerAction.Arrow(ARROW_KEYS.getValue(dir))
         }
@@ -107,8 +111,10 @@ class ControllerShortcuts {
     companion object {
         const val ARROW_FIRST_REPEAT_MS = 400L
         const val ARROW_REPEAT_MS = 110L
-        const val SCROLL_REPEAT_MS = 70L
-        const val SCROLL_ROWS = 2
+        const val SCROLL_REPEAT_MS = 50L
+        const val SCROLL_MAX_ROWS = 8
+
+        fun scrollRows(ticksHeld: Int): Int = (1 + ticksHeld / 3).coerceAtMost(SCROLL_MAX_ROWS)
 
         /** Only triggers click panels, so A and X are free for shortcuts. */
         const val CLICK_BUTTONS = Pad.TRIGGER_L or Pad.TRIGGER_R

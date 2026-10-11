@@ -60,6 +60,7 @@ fun MoshVrRoot(
     var showHome by rememberSaveable { mutableStateOf(startOnHome) }
     var showSettings by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+    var showShortcuts by remember { mutableStateOf(false) }
     var knownHosts by remember { mutableStateOf(sessionManager.knownHosts.list()) }
     var fontSizePx by rememberSaveable { mutableIntStateOf(initialFontSizePx) }
     DisposableEffect(sessionManager) {
@@ -143,6 +144,7 @@ fun MoshVrRoot(
                     }
                     ChromeText("A-", MoshVrColors.TextSecondary) { if (fontSizePx > 14) fontSizePx -= 2 }
                     ChromeText("A+", MoshVrColors.TextSecondary) { if (fontSizePx < 64) fontSizePx += 2 }
+                    ChromeText("[ ? ]", MoshVrColors.Green) { showShortcuts = true }
                     ChromeText("⚙", MoshVrColors.TextSecondary) { showSettings = true }
                     extraTopBarContent?.invoke()
                     ChromeText(modeSwitchLabel, MoshVrColors.Green, onClick = onModeSwitch)
@@ -200,6 +202,9 @@ fun MoshVrRoot(
             }
             if (showAbout) {
                 AboutDialog(onDismiss = { showAbout = false })
+            }
+            if (showShortcuts) {
+                ShortcutsDialog(onDismiss = { showShortcuts = false })
             }
             HostKeyPrompt.current?.let { request ->
                 HostKeyConfirmDialog(
