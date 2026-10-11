@@ -36,8 +36,9 @@ class TransportTerminalSession(
     @Volatile
     private var ending: SessionEnding = SessionEnding.Disconnected
 
-    private var columns = 80
-    private var rows = 24
+    // Written on the main thread, read by the connect thread.
+    @Volatile private var columns = 80
+    @Volatile private var rows = 24
 
     override fun initializeEmulator(columns: Int, rows: Int, cellWidthPixels: Int, cellHeightPixels: Int) {
         this.columns = columns
@@ -51,14 +52,21 @@ class TransportTerminalSession(
         Thread({
             try {
                 showSystemMessage("connecting...\r\n")
-                val s = transport.connect(this.columns, this.rows)
+                val connectedColumns = this.columns
+                val connectedRows = this.rows
+                val s = transport.connect(connectedColumns, connectedRows)
                 streams = s
                 if (closed) {
                     transport.close()
                     return@Thread
                 }
-                StartupCommand.typedLine(startupCommand)?.let { write(it) }
+                // Resizes while connecting were skipped (no streams yet); send the latest size.
+                if (this.columns != connectedColumns || this.rows != connectedRows) {
+                    transport.resize(this.columns, this.rows)
+                }
+                // Writer first: a startup command longer than the 4 KB input queue would block forever.
                 startWriterThread(s)
+                StartupCommand.typedLine(startupCommand)?.let { write(it) }
                 readLoop(s)
             } catch (e: Exception) {
                 if (!closed) {

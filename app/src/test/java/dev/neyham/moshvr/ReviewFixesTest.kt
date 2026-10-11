@@ -89,3 +89,24 @@ class ReviewFixesTest {
         listOf(File(path), File(path.removePrefix("app/"))).firstOrNull { it.exists() }?.readText()
             ?: error("missing $path")
 }
+
+/** Regressions from the second 2026-10-11 review pass. */
+class ConnectFlowReviewTest {
+
+    @Test
+    fun handshakeOutlastsTheHostKeyPrompt() {
+        val prompt = HostKeyGate().timeoutMs // HostKeyPrompt.gate uses the default
+        val kex = dev.neyham.moshvr.session.SshAuth.kexTimeoutMs(prompt)
+        assertTrue("kex $kex ms must exceed prompt $prompt ms", kex > prompt)
+    }
+
+    @Test
+    fun writerStartsBeforeTheStartupCommandAndSizeIsResent() {
+        val src = File("src/main/java/dev/neyham/moshvr/session/TransportTerminalSession.kt")
+            .takeIf { it.exists() }
+            ?: File("app/src/main/java/dev/neyham/moshvr/session/TransportTerminalSession.kt")
+        val text = src.readText()
+        assertTrue(text.indexOf("startWriterThread(s)") < text.indexOf("StartupCommand.typedLine"))
+        assertTrue(text.contains("transport.resize(this.columns, this.rows)"))
+    }
+}

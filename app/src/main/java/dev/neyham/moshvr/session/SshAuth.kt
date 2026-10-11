@@ -10,6 +10,14 @@ import java.io.IOException
 
 /** Shared SSH connect + authenticate flow (used by the SSH transport and the mosh bootstrap). */
 object SshAuth {
+    const val CONNECT_TIMEOUT_MS = 15_000
+    const val KEX_TIMEOUT_MS = 15_000
+
+    /**
+     * The host-key verifier runs inside key exchange, so the kex timeout must also cover the
+     * user reading the fingerprint prompt, or a slow confirm fails the handshake.
+     */
+    fun kexTimeoutMs(promptTimeoutMs: Long): Int = (KEX_TIMEOUT_MS + promptTimeoutMs).toInt()
 
     fun connectAndAuthenticate(
         profile: HostProfile,
@@ -59,8 +67,8 @@ object SshAuth {
                         }
                     }
                 },
-                15000,
-                15000,
+                CONNECT_TIMEOUT_MS,
+                kexTimeoutMs(HostKeyPrompt.gate.timeoutMs),
             )
             authenticate(conn, profile)
             return conn
