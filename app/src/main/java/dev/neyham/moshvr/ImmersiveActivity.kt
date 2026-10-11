@@ -14,6 +14,7 @@ import com.meta.spatial.runtime.LayerConfig
 import com.meta.spatial.runtime.MicrogestureBits
 import com.meta.spatial.runtime.ReferenceSpace
 import com.meta.spatial.toolkit.AppSystemActivity
+import com.meta.spatial.toolkit.Equirect360ShapeOptions
 import com.meta.spatial.toolkit.Grabbable
 import com.meta.spatial.toolkit.MicrogesturesSystem
 import com.meta.spatial.toolkit.Panel
@@ -26,7 +27,7 @@ import dev.neyham.moshvr.ui.InputGate
 import dev.neyham.moshvr.ui.MicPermission
 import dev.neyham.moshvr.ui.StickChrome
 import dev.neyham.moshvr.ui.VoicePtt
-import dev.neyham.moshvr.ui.MatrixRain
+import dev.neyham.moshvr.ui.ConstructSky
 import dev.neyham.moshvr.ui.MoshVrColors
 import dev.neyham.moshvr.ui.ChromeText
 import dev.neyham.moshvr.ui.MoshVrRoot
@@ -97,9 +98,7 @@ class ImmersiveActivity : AppSystemActivity() {
         }
         return try {
             panel.setComponent(Transform(ImmersiveLayout.pose()))
-            matrixPanels.forEachIndexed { index, entity ->
-                entity.setComponent(Transform(ImmersiveLayout.matrixPose(index)))
-            }
+            matrixPanels.forEach { it.setComponent(Transform(ImmersiveLayout.constructPose())) }
             scene.setReferenceSpace(ReferenceSpace.LOCAL_FLOOR)
             recenterNote.value = "View reset"
             true
@@ -149,20 +148,10 @@ class ImmersiveActivity : AppSystemActivity() {
             Grabbable(),
         )
 
-        // The construct: rain panels surrounding the user, hidden until Matrix mode.
+        // The construct: a 360° rain world around the viewer, hidden until Matrix mode.
         matrixPanels += Entity.create(
-            Panel(R.id.panel_matrix_back),
-            Transform(ImmersiveLayout.matrixBack()),
-            Visible(false),
-        )
-        matrixPanels += Entity.create(
-            Panel(R.id.panel_matrix_left),
-            Transform(ImmersiveLayout.matrixLeft()),
-            Visible(false),
-        )
-        matrixPanels += Entity.create(
-            Panel(R.id.panel_matrix_right),
-            Transform(ImmersiveLayout.matrixRight()),
+            Panel(R.id.panel_matrix_sky),
+            Transform(ImmersiveLayout.constructPose()),
             Visible(false),
         )
 
@@ -202,20 +191,21 @@ class ImmersiveActivity : AppSystemActivity() {
 
     override fun registerPanels(): List<PanelRegistration> {
         val app = application as MoshVrApp
-        val rainPanel: (Int) -> PanelRegistration = { panelId ->
-            PanelRegistration(panelId) {
-                config {
-                    themeResourceId = R.style.PanelAppThemeTransparent
-                    width = 5.4f
-                    height = 3.2f
-                    layoutWidthInDp = 1080f
-                    layoutHeightInDp = 640f
-                    enableTransparent = false
-                    includeGlass = false
-                }
-                composePanel {
-                    setContent { MatrixRain(Modifier.fillMaxSize()) }
-                }
+        val constructPanel = PanelRegistration(R.id.panel_matrix_sky) {
+            config {
+                themeResourceId = R.style.PanelAppThemeTransparent
+                layoutWidthInPx = ImmersiveLayout.CONSTRUCT_TEXTURE_W
+                layoutHeightInPx = ImmersiveLayout.CONSTRUCT_TEXTURE_H
+                layoutWidthInDp = ImmersiveLayout.CONSTRUCT_TEXTURE_W.toFloat()
+                layoutHeightInDp = ImmersiveLayout.CONSTRUCT_TEXTURE_H.toFloat()
+                // Behind the terminal wall, which keeps the default layer z-index 0.
+                layerConfig = LayerConfig().apply { zIndex = -1 }
+                Equirect360ShapeOptions(radius = 0f).applyTo(this)
+                enableTransparent = false
+                includeGlass = false
+            }
+            composePanel {
+                setContent { ConstructSky(Modifier.fillMaxSize()) }
             }
         }
         return listOf(
@@ -262,9 +252,7 @@ class ImmersiveActivity : AppSystemActivity() {
                     }
                 }
             },
-            rainPanel(R.id.panel_matrix_back),
-            rainPanel(R.id.panel_matrix_left),
-            rainPanel(R.id.panel_matrix_right),
+            constructPanel,
         )
     }
 

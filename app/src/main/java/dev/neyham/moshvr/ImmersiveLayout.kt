@@ -38,15 +38,12 @@ object ImmersiveLayout {
 
     fun pose(): Pose = Pose(Vector3(0f, CENTER_Y_M, DISTANCE_M), Quaternion())
 
-    fun matrixBack(): Pose = Pose(Vector3(0f, 1.9f, 3.4f), Quaternion())
-    fun matrixLeft(): Pose = Pose(Vector3(-2.9f, 1.9f, 1.3f), Quaternion(pitch = 0f, yaw = 65f, roll = 0f))
-    fun matrixRight(): Pose = Pose(Vector3(2.9f, 1.9f, 1.3f), Quaternion(pitch = 0f, yaw = -65f, roll = 0f))
+    /** Equirect texture of the construct: ~10.7 px per degree around the horizon. */
+    const val CONSTRUCT_TEXTURE_W = 3840
+    const val CONSTRUCT_TEXTURE_H = 1920
 
-    fun matrixPose(index: Int): Pose = when (index) {
-        0 -> matrixBack()
-        1 -> matrixLeft()
-        else -> matrixRight()
-    }
+    /** Radius 0 puts the construct at infinity, so it is centred on the viewer wherever they stand. */
+    fun constructPose(): Pose = Pose(Vector3(0f, 0f, 0f), Quaternion())
 
     fun horizontalFovDegrees(): Float {
         val half = atan((WIDTH_M / 2.0) / DISTANCE_M.toDouble())
