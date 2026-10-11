@@ -47,6 +47,7 @@ class ImmersiveActivity : AppSystemActivity() {
     private val matrixPanels = mutableListOf<Entity>()
     private var mainPanel: Entity? = null
     private var microgesturesBound = false
+    private val moveMode = mutableStateOf(false)
 
     override fun registerFeatures(): List<SpatialFeature> {
         return listOf(VRFeature(this), ComposeFeature())
@@ -59,6 +60,7 @@ class ImmersiveActivity : AppSystemActivity() {
     override fun onResume() {
         super.onResume()
         inputGate.resumed = true
+        StickChrome.sticksMapped = true
         // Panels live on their own virtual displays. Using one moves the top focused
         // display off this window, so window focus would lock every panel after one click.
         inputGate.focused = true
@@ -70,7 +72,8 @@ class ImmersiveActivity : AppSystemActivity() {
     }
 
     override fun onPause() {
-        inputGate.resumed = false;
+        inputGate.resumed = false
+        StickChrome.sticksMapped = false
         VoiceSession.abandonFrom(this)
         super.onPause()
     }
@@ -142,10 +145,11 @@ class ImmersiveActivity : AppSystemActivity() {
         scene.setReferenceSpace(ReferenceSpace.LOCAL_FLOOR)
         scene.enablePassthrough(true)
 
+        // Grips are controller shortcuts (talk, scroll); grabbing the wall needs [ MOVE ] on.
         mainPanel = Entity.create(
             Panel(R.id.panel_main),
             Transform(ImmersiveLayout.pose()),
-            Grabbable(),
+            Grabbable(enabled = false),
         )
 
         // The construct: a 360° rain world around the viewer, hidden until Matrix mode.
@@ -156,6 +160,41 @@ class ImmersiveActivity : AppSystemActivity() {
         )
 
         runCatching { registerMicrogestures() }
+        systemManager.registerSystem(
+            ControllerShortcutsSystem(
+                enabled = { inputGate.allowDispatch() && !spatialDialogOpen && !moveMode.value },
+                onAction = { runControllerAction(it) },
+            ),
+        )
+    }
+
+    private fun setMoveMode(enabled: Boolean) {
+        moveMode.value = enabled
+        mainPanel?.setComponent(Grabbable(enabled = enabled))
+    }
+
+    private fun runControllerAction(action: ControllerAction) {
+        val app = application as MoshVrApp
+        val open = app.sessionManager.active ?: return
+        val session = open.session
+        val view = open.client.view
+        when (action) {
+            ControllerAction.Enter -> VoicePtt.onEnter?.invoke() ?: session.write("\r")
+            ControllerAction.Backspace ->
+                if (VoicePtt.isBusy()) VoicePtt.onCancel?.invoke()
+                else VoicePtt.onBackspace?.invoke() ?: session.write("\u007f")
+            ControllerAction.TalkStart -> VoicePtt.onTalk?.invoke(true)
+            ControllerAction.TalkEnd -> VoicePtt.onTalk?.invoke(false)
+            ControllerAction.ToggleKeyboard -> VoicePtt.onKeyboard?.invoke()
+            ControllerAction.Esc -> session.write("\u001b")
+            ControllerAction.Tab -> session.write("\t")
+            ControllerAction.CtrlC -> session.write("\u0003")
+            // Through the emulator so TUIs in application-cursor mode get the right sequence.
+            is ControllerAction.Arrow -> view?.handleKeyCode(action.keyCode, 0)
+            is ControllerAction.Scroll -> view?.scrollLines(action.rows)
+            is ControllerAction.HerdrTab -> StickChrome.onCycleTab?.invoke(action.direction)
+            is ControllerAction.HerdrWorkspace -> StickChrome.onCycleWorkspace?.invoke(action.direction)
+        }
     }
 
     /**
@@ -220,6 +259,7 @@ class ImmersiveActivity : AppSystemActivity() {
                     layoutWidthInDp = ImmersiveLayout.LAYOUT_WIDTH_DP
                     layoutHeightInDp = ImmersiveLayout.LAYOUT_HEIGHT_DP
                     layerConfig = LayerConfig()
+                    clickButtons = ControllerShortcuts.CLICK_BUTTONS
                     enableTransparent = true
                     includeGlass = false
                 }
@@ -240,6 +280,10 @@ class ImmersiveActivity : AppSystemActivity() {
                                 ChromeText("[ RECENTER ]", MoshVrColors.TextSecondary) {
                                     recenterView()
                                 }
+                                ChromeText(
+                                    if (moveMode.value) "[ MOVING: grip to grab · DONE ]" else "[ MOVE ]",
+                                    if (moveMode.value) MoshVrColors.Green else MoshVrColors.TextSecondary,
+                                ) { setMoveMode(!moveMode.value) }
                                 recenterNote.value?.let { note ->
                                     ChromeText(note, MoshVrColors.TextSecondary) { recenterNote.value = null }
                                 }

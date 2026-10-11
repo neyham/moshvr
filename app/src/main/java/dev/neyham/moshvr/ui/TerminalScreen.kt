@@ -233,7 +233,20 @@ fun TerminalPane(
                     open.session.write("\r")
                 }
             },
-            keyboard = { showComposerKeyboard() },
+            keyboard = {
+                if (composerOpen) {
+                    composerOpen = false
+                    keyboard?.hide()
+                } else {
+                    showComposerKeyboard()
+                }
+            },
+            // A dictated draft is edited first; otherwise it is the terminal's Backspace.
+            backspace = {
+                val draft = open.composerDraft
+                if (draft.isNotEmpty()) open.composerDraft = draft.dropLast(1) else open.session.write("\u007f")
+            },
+            talk = { start -> if (start) { if (!recording) beginTalk() } else if (recording) endTalk() },
             busy = { recording || transcribing },
         )
         onDispose {
@@ -352,6 +365,11 @@ fun TerminalPane(
                         keepScreenOn = settingsStore.load().keepScreenOn
                         isFocusable = true
                         isFocusableInTouchMode = true
+                        // In immersive mode the SDK turns either stick into panel scrolls; the sticks
+                        // belong to the controller shortcuts there, so drop those scrolls.
+                        setOnGenericMotionListener { _, e ->
+                            StickChrome.sticksMapped && e.actionMasked == MotionEvent.ACTION_SCROLL
+                        }
                         tag = fontSizePx
                     }
                 },

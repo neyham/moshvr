@@ -57,6 +57,9 @@ object StickChrome {
     const val MIN_TAB_MS = 350L
     @Volatile var onCycleTab: ((Int) -> Unit)? = null
 
+    /** True while immersive controller shortcuts own both sticks (see ControllerShortcuts). */
+    @Volatile var sticksMapped: Boolean = false
+
     fun bindCycleTab(handler: (Int) -> Unit) {
         onCycleTab = handler
     }
@@ -216,6 +219,8 @@ object VoicePtt {
     @Volatile var onCancel: (() -> Unit)? = null
     @Volatile var onEnter: (() -> Unit)? = null
     @Volatile var onKeyboard: (() -> Unit)? = null
+    @Volatile var onBackspace: (() -> Unit)? = null
+    @Volatile var onTalk: ((Boolean) -> Unit)? = null
     @Volatile var isBusy: () -> Boolean = { false }
     @Volatile private var owner: Any? = null
 
@@ -226,12 +231,16 @@ object VoicePtt {
         enter: () -> Unit = {},
         busy: () -> Boolean = { false },
         keyboard: () -> Unit = {},
+        backspace: () -> Unit = {},
+        talk: (Boolean) -> Unit = {},
     ) {
         owner = token
         onToggle = toggle
         onCancel = cancel
         onEnter = enter
         onKeyboard = keyboard
+        onBackspace = backspace
+        onTalk = talk
         isBusy = busy
     }
 
@@ -242,6 +251,8 @@ object VoicePtt {
             onCancel = null
             onEnter = null
             onKeyboard = null
+            onBackspace = null
+            onTalk = null
             isBusy = { false }
         }
     }
