@@ -35,3 +35,28 @@ class SafeFileTest {
         assertTrue(kept.exists())
     }
 }
+
+class SafeFileConcurrencyTest {
+
+    @Test
+    fun concurrentLoadsAndSavesNeverLoseTheSavedFile() {
+        val d = java.nio.file.Files.createTempDirectory("safefile-race").toFile()
+        val file = File(d, "known_hosts.json").apply { writeText("not json") }
+        val f = SafeFile(file)
+        val threads = (1..8).map { i ->
+            Thread {
+                repeat(50) {
+                    synchronized(f.lock) {
+                        f.load({ "" }) { if (it.startsWith("ok")) it else error("bad") }
+                        f.writeText("ok-$i")
+                    }
+                    f.load({ "" }) { if (it.startsWith("ok")) it else error("bad") }
+                }
+            }
+        }
+        threads.forEach { it.start() }
+        threads.forEach { it.join(10_000) }
+        assertTrue(f.load({ "" }) { it }.startsWith("ok-"))
+        assertEquals(1, d.listFiles()!!.count { it.name.contains(".corrupt-") })
+    }
+}

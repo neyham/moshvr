@@ -32,12 +32,17 @@ class VoiceRecorder {
                 CHANNEL,
                 ENCODING,
                 maxOf(minBuf, 8192),
-            ).also {
-                check(it.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord not initialized" }
-                it.startRecording()
-                check(it.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "microphone busy" }
-            }
-        }.getOrElse {
+            )
+        }.getOrElse { return false }
+        val started = runCatching {
+            check(rec.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord not initialized" }
+            rec.startRecording()
+            check(rec.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "microphone busy" }
+        }.isSuccess
+        if (!started) {
+            // Give the mic back, or every later attempt fails too and leaks another recorder.
+            runCatching { rec.stop() }
+            rec.release()
             return false
         }
         pcm.reset()
