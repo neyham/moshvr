@@ -75,6 +75,8 @@ object ConstructFloor {
 private const val SKY_GLYPHS =
     "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789:・.\"=*+-<>¦｜"
 
+private val GLYPH_CHARS = SKY_GLYPHS.toCharArray()
+
 /** One falling stream in a depth layer; positions are in rows of that layer. */
 private class Stream(rows: Int, random: Random) {
     var head = -random.nextInt(rows).toFloat()
@@ -111,7 +113,7 @@ private class RainLayer(val fontPx: Float, val brightness: Float, val density: F
  * over a glowing floor grid that runs to the horizon. Drawn into an equirect panel.
  */
 @Composable
-fun ConstructSky(modifier: Modifier = Modifier) {
+fun ConstructSky(active: Boolean, modifier: Modifier = Modifier) {
     var frameTime by remember { mutableLongStateOf(0L) }
     val random = remember { Random(System.nanoTime()) }
     val layers = remember {
@@ -138,7 +140,9 @@ fun ConstructSky(modifier: Modifier = Modifier) {
     // Static parts depend only on the texture size; build them once, not every frame.
     val floorCache = remember { arrayOfNulls<Any>(2) }
 
-    LaunchedEffect(Unit) {
+    // Hidden (reality mode), the panel is invisible: stop animating instead of redrawing 4K at 30 fps.
+    LaunchedEffect(active) {
+        if (!active) return@LaunchedEffect
         var last = 0L
         while (true) {
             androidx.compose.runtime.withFrameNanos { now ->
@@ -221,8 +225,8 @@ fun ConstructSky(modifier: Modifier = Modifier) {
                     } else {
                         android.graphics.Color.argb(a, 0, 255, 102)
                     }
-                    val glyph = SKY_GLYPHS[s.glyphs[(row and Int.MAX_VALUE) % s.glyphs.size]]
-                    canvas.drawText(glyph.toString(), c * cellW, y, textPaint)
+                    val glyph = s.glyphs[(row and Int.MAX_VALUE) % s.glyphs.size]
+                    canvas.drawText(GLYPH_CHARS, glyph, 1, c * cellW, y, textPaint)
                 }
             }
         }

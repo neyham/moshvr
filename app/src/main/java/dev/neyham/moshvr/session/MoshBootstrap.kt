@@ -1,5 +1,6 @@
 package dev.neyham.moshvr.session
 
+import com.trilead.ssh2.ChannelCondition
 import dev.neyham.moshvr.data.HostProfile
 import dev.neyham.moshvr.data.KnownHostsStore
 import java.io.IOException
@@ -11,6 +12,8 @@ import java.net.InetAddress
  * to the local mosh-client which takes over on UDP.
  */
 object MoshBootstrap {
+    /** Generous: mosh-server answers in well under a second on a healthy host. */
+    const val SERVER_ANSWER_TIMEOUT_MS = 20_000L
 
     data class Endpoint(val ip: String, val port: Int, val key: String)
 
@@ -49,6 +52,17 @@ object MoshBootstrap {
                 // macOS non-login PATH lacks Homebrew: append it, keeping the host's own PATH
                 // (Nix, Linuxbrew, ~/.local/bin, snap).
                 session.execCommand(serverStartCommand(profile.startupCommand))
+                // A shell rc that hangs or prompts would otherwise keep us in "bootstrapping" forever.
+                val done = session.waitForCondition(
+                    ChannelCondition.EOF or ChannelCondition.CLOSED,
+                    SERVER_ANSWER_TIMEOUT_MS,
+                )
+                if (done and ChannelCondition.TIMEOUT != 0) {
+                    throw IOException(
+                        "mosh-server did not answer within ${SERVER_ANSWER_TIMEOUT_MS / 1000} s." +
+                            "\r\nDoes a login script on the host wait for input?",
+                    )
+                }
                 val stdout = session.stdout.readBytes().toString(Charsets.UTF_8)
                 val stderr = session.stderr.readBytes().toString(Charsets.UTF_8)
                 val combined = "$stdout\n$stderr"

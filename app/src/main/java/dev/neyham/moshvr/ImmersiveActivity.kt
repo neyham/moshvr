@@ -246,7 +246,7 @@ class ImmersiveActivity : AppSystemActivity() {
                 includeGlass = false
             }
             composePanel {
-                setContent { ConstructSky(Modifier.fillMaxSize()) }
+                setContent { ConstructSky(active = matrixMode.value, modifier = Modifier.fillMaxSize()) }
             }
         }
         return listOf(

@@ -21,6 +21,7 @@ data class KnownHostEntry(
 /** Host key store. First contact does **not** persist until the user accepts. */
 class KnownHostsStore(context: Context) {
     private val file = File(context.filesDir, "known_hosts.json")
+    private val store = SafeFile(file)
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
     sealed class Result {
@@ -47,19 +48,19 @@ class KnownHostsStore(context: Context) {
         }
     }
 
-    fun accept(host: String, port: Int, algorithm: String, key: ByteArray) {
+    fun accept(host: String, port: Int, algorithm: String, key: ByteArray) = synchronized(store.lock) {
         val data = load()
         data.entries[HostKeyLogic.id(host, port)] = HostKeyLogic.encode(algorithm, key)
         save(data)
     }
 
-    fun forget(host: String, port: Int) {
+    fun forget(host: String, port: Int) = synchronized(store.lock) {
         val data = load()
         data.entries.remove(HostKeyLogic.id(host, port))
         save(data)
     }
 
-    fun clearAll() {
+    fun clearAll() = synchronized(store.lock) {
         save(KnownHostsFile())
     }
 
@@ -79,11 +80,8 @@ class KnownHostsStore(context: Context) {
         )
     }.sortedBy { it.id }
 
-    private fun load(): KnownHostsFile {
-        if (!file.exists()) return KnownHostsFile()
-        return runCatching { json.decodeFromString<KnownHostsFile>(file.readText()) }
-            .getOrDefault(KnownHostsFile())
-    }
+    private fun load(): KnownHostsFile =
+        store.load({ KnownHostsFile() }) { json.decodeFromString<KnownHostsFile>(it) }
 
-    private fun save(data: KnownHostsFile) = file.writeText(json.encodeToString(data))
+    private fun save(data: KnownHostsFile) = store.writeText(json.encodeToString(data))
 }

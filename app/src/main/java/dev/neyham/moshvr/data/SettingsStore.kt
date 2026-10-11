@@ -81,26 +81,25 @@ data class AppSettings(
 
 class SettingsStore(context: Context) {
     private val file = File(context.filesDir, "settings.json")
+    private val store = SafeFile(file)
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
-    fun load(): AppSettings {
-        if (!file.exists()) return AppSettings()
-        val loaded = runCatching { json.decodeFromString<AppSettings>(file.readText()) }
-            .getOrDefault(AppSettings())
+    fun load(): AppSettings = synchronized(store.lock) {
+        val loaded = store.load({ AppSettings() }) { json.decodeFromString<AppSettings>(it) }
         val raw = loaded.encApiKey ?: return loaded
         if (!SttPolicy.isLegacyPlaintextKey(raw)) return loaded
         val migrated = runCatching {
             loaded.copy(encApiKey = CryptoStore.encrypt(raw))
         }.getOrElse { loaded.copy(encApiKey = null) }
         save(migrated)
-        return migrated
+        migrated
     }
 
     fun save(settings: AppSettings) {
-        file.writeText(json.encodeToString(settings))
+        store.writeText(json.encodeToString(settings))
     }
 
-    fun clearApiKey() {
+    fun clearApiKey() = synchronized(store.lock) {
         val current = load()
         save(current.copy(encApiKey = null, speechProfiles = current.speechProfiles - current.speechProvider).withoutSpeechConsent())
     }

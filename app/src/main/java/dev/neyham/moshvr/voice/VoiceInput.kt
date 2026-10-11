@@ -87,7 +87,10 @@ class VoiceInput(
             onStatus(statusForDenied())
             return
         }
-        recorder.start()
+        if (!recorder.start()) {
+            onStatus("Microphone is busy; try again")
+            return
+        }
         recordedWith = settings
         onRecording(true)
         onStatus("Recording… tap STOP to upload. Leave before STOP to discard.")

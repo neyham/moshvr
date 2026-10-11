@@ -31,11 +31,12 @@ class ControllerShortcutsSystem(
         StickChrome.nativeScrollAllowed = ControllerShortcuts.nativeScrollAllowed(state)
         // Keep edge tracking current even while disabled, so nothing fires on re-enable.
         val actions = shortcuts.update(state, SystemClock.uptimeMillis())
-        if (!enabled()) return
         actions.forEach { action ->
-            runCatching { android.util.Log.d("moshvr-keys", "vr pad $action state=0x${Integer.toHexString(state)}") }
-            // Actions touch views and Compose state: always run them on the main thread.
-            if (Looper.myLooper() == Looper.getMainLooper()) onAction(action) else main.post { onAction(action) }
+            // Releasing talk must always end the take, even with a dialog or [ MOVE ] up.
+            val run = { if (enabled() || action == ControllerAction.TalkEnd) onAction(action) }
+            // Actions touch views and Compose state: always run them on the main thread,
+            // re-checking there so a dialog that opened meanwhile gets no keystrokes.
+            if (Looper.myLooper() == Looper.getMainLooper()) run() else main.post(run)
         }
     }
 }

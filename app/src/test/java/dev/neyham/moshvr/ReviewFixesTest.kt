@@ -144,3 +144,36 @@ class InputSafetyReviewTest {
         assertEquals(3, Regex("if \\(!current\\) return").findAll(src).count())
     }
 }
+
+/** Regressions from the agy / grok reviews (2026-10-11). */
+class AgyGrokReviewTest {
+
+    private fun read(path: String): String =
+        listOf(File(path), File(path.removePrefix("app/"))).firstOrNull { it.exists() }?.readText()
+            ?: error("missing $path")
+
+    @Test
+    fun keepAlivePingsTheSessionNotTheConnection() {
+        val src = read("app/src/main/java/dev/neyham/moshvr/session/SshTransport.kt")
+        assertTrue(src.contains("{ sess.ping() }"))
+        assertFalse(src.contains("conn.ping()"))
+    }
+
+    @Test
+    fun composeScrollPathsHonourTheStickDrop() {
+        val src = read("app/src/main/java/dev/neyham/moshvr/ui/TerminalScreen.kt")
+        assertEquals(3, Regex("StickChrome\\.dropPanelScroll\\(").findAll(src).count())
+    }
+
+    @Test
+    fun noControllerLoggingAndTalkEndAlwaysRuns() {
+        val src = read("app/src/main/java/dev/neyham/moshvr/ControllerShortcutsSystem.kt")
+        assertFalse(src.contains("moshvr-keys"))
+        assertTrue(src.contains("action == ControllerAction.TalkEnd"))
+    }
+
+    @Test
+    fun moshBootstrapHasATimeout() {
+        assertTrue(dev.neyham.moshvr.session.MoshBootstrap.SERVER_ANSWER_TIMEOUT_MS in 5_000L..60_000L)
+    }
+}

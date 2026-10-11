@@ -252,13 +252,27 @@ fun HostKeyConfirmDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onRespond(true) }) {
-                Text(if (request.isChange) "Trust new key" else "Trust this host", color = MoshVrColors.Green)
+            if (request.isChange) {
+                // A changed key may be an attack: trusting it takes a second, deliberate tap.
+                var armed by remember(request.id) { mutableStateOf(false) }
+                TextButton(onClick = { if (armed) onRespond(true) else armed = true }) {
+                    Text(
+                        if (armed) "Tap again to trust" else "Trust new key…",
+                        color = if (armed) MoshVrColors.Error else MoshVrColors.TextSecondary,
+                    )
+                }
+            } else {
+                TextButton(onClick = { onRespond(true) }) {
+                    Text("Trust this host", color = MoshVrColors.Green)
+                }
             }
         },
         dismissButton = {
             TextButton(onClick = { onRespond(false) }) {
-                Text("Reject", color = MoshVrColors.Error)
+                Text(
+                    "Reject",
+                    color = if (request.isChange) MoshVrColors.Green else MoshVrColors.Error,
+                )
             }
         },
     )

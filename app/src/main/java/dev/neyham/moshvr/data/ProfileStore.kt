@@ -12,28 +12,26 @@ private data class ProfileFile(val profiles: List<HostProfile> = emptyList())
 /** JSON-file backed store for host profiles. Secrets inside are Keystore-encrypted. */
 class ProfileStore(context: Context) {
     private val file = File(context.filesDir, "profiles.json")
+    private val store = SafeFile(file)
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
-    fun load(): List<HostProfile> {
-        if (!file.exists()) return emptyList()
-        return runCatching { json.decodeFromString<ProfileFile>(file.readText()).profiles }
-            .getOrDefault(emptyList())
-    }
+    fun load(): List<HostProfile> =
+        store.load({ emptyList() }) { json.decodeFromString<ProfileFile>(it).profiles }
 
     fun save(profiles: List<HostProfile>) {
-        file.writeText(json.encodeToString(ProfileFile(profiles)))
+        store.writeText(json.encodeToString(ProfileFile(profiles)))
     }
 
-    fun upsert(profile: HostProfile): List<HostProfile> {
+    fun upsert(profile: HostProfile): List<HostProfile> = synchronized(store.lock) {
         val updated = load().filter { it.id != profile.id } + profile
         save(updated)
-        return updated
+        updated
     }
 
-    fun delete(id: String): List<HostProfile> {
+    fun delete(id: String): List<HostProfile> = synchronized(store.lock) {
         val updated = load().filter { it.id != id }
         save(updated)
-        return updated
+        updated
     }
 
     /**

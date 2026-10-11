@@ -46,21 +46,23 @@ class SshTransport(
         session = sess
         sess.requestPTY("xterm-256color", columns, rows, columns * 8, rows * 16, utf8PtyModes())
         sess.startShell()
-        keepAlive = startKeepAlive(conn)
+        keepAlive = startKeepAlive(conn, sess)
         return TransportStreams(sess.stdout, sess.stdin)
     }
 
     /**
      * A sleeping headset or an idle NAT drops TCP silently, and a blocked read would never
      * notice. Ping the server; if no reply arrives in time, report the link dead.
-     * Connection.ping() and close() share a monitor, so a hung ping is abandoned, not closed.
+     * Pings the session channel: Connection.ping() holds the connection's monitor while it
+     * waits, so a hung one would block close() forever and leak the socket and remote shell.
+     * Session.ping() does not, and close() wakes it with an error.
      */
-    private fun startKeepAlive(conn: Connection): Thread = Thread({
+    private fun startKeepAlive(conn: Connection, sess: Session): Thread = Thread({
         try {
             while (connection === conn) {
                 Thread.sleep(SshKeepAlive.INTERVAL_MS)
                 if (connection !== conn) return@Thread
-                if (!SshKeepAlive.pingWithin(SshKeepAlive.TIMEOUT_MS) { conn.ping() }) {
+                if (!SshKeepAlive.pingWithin(SshKeepAlive.TIMEOUT_MS) { sess.ping() }) {
                     if (connection === conn) deadLinkListener?.invoke()
                     return@Thread
                 }
@@ -126,14 +128,14 @@ object SshKeepAlive {
 
     /** Runs [ping] on a helper thread; true if it returned normally within [timeoutMs]. */
     fun pingWithin(timeoutMs: Long, ping: () -> Unit): Boolean {
-        var ok = false
+        val ok = java.util.concurrent.atomic.AtomicBoolean(false)
         val worker = Thread({
-            ok = runCatching(ping).isSuccess
+            ok.set(runCatching(ping).isSuccess)
         }, "SshPing").apply {
             isDaemon = true
             start()
         }
         worker.join(timeoutMs)
-        return !worker.isAlive && ok
+        return !worker.isAlive && ok.get()
     }
 }

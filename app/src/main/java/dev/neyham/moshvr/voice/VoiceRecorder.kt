@@ -20,21 +20,29 @@ class VoiceRecorder {
 
     val isRecording: Boolean get() = recording
 
+    /** False if the microphone could not be opened (busy, or in a bad state). */
     @SuppressLint("MissingPermission") // caller checks RECORD_AUDIO
-    fun start() {
-        if (recording) return
-        val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL, ENCODING)
-        val rec = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
-            SAMPLE_RATE,
-            CHANNEL,
-            ENCODING,
-            maxOf(minBuf, 8192),
-        )
+    fun start(): Boolean {
+        if (recording) return true
+        val rec = runCatching {
+            val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL, ENCODING)
+            AudioRecord(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                SAMPLE_RATE,
+                CHANNEL,
+                ENCODING,
+                maxOf(minBuf, 8192),
+            ).also {
+                check(it.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord not initialized" }
+                it.startRecording()
+                check(it.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "microphone busy" }
+            }
+        }.getOrElse {
+            return false
+        }
         pcm.reset()
         recorder = rec
         recording = true
-        rec.startRecording()
         thread = Thread({
             val buffer = ByteArray(4096)
             while (recording) {
@@ -42,6 +50,7 @@ class VoiceRecorder {
                 if (read > 0) synchronized(pcm) { pcm.write(buffer, 0, read) }
             }
         }, "VoiceRecorder").also { it.start() }
+        return true
     }
 
     /** Stops recording and returns a WAV file as bytes (null if nothing captured). */

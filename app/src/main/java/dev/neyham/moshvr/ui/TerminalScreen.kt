@@ -329,6 +329,10 @@ fun TerminalPane(
     Column(modifier = modifier.background(Color.Black).imePadding()) {
         val stickScroll = rememberScrollableState { delta ->
             if (kotlin.math.abs(delta) < 2f) return@rememberScrollableState 0f
+            // Immersive sticks reach Compose before the TerminalView listener; drop them here too.
+            if (StickChrome.dropPanelScroll(MotionEvent.ACTION_SCROLL, android.os.SystemClock.uptimeMillis())) {
+                return@rememberScrollableState delta
+            }
             val rows = if (delta > 0) -1 else 1
             terminalView?.scrollLines(rows)
             inputHint = if (rows < 0) "scroll ↑" else "scroll ↓"
@@ -344,7 +348,11 @@ fun TerminalPane(
                         while (true) {
                             val event = awaitPointerEvent()
                             val dy = event.changes.fold(0f) { acc, c -> acc + c.scrollDelta.y }
-                            if (dy != 0f) {
+                            if (dy != 0f &&
+                                StickChrome.dropPanelScroll(MotionEvent.ACTION_SCROLL, android.os.SystemClock.uptimeMillis())
+                            ) {
+                                event.changes.forEach { it.consume() }
+                            } else if (dy != 0f) {
                                 val rows = if (dy < 0) -1 else 1
                                 terminalView?.scrollLines(rows)
                                 inputHint = if (rows < 0) "scroll ↑" else "scroll ↓"
