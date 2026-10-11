@@ -56,6 +56,14 @@ object TerminalPointer {
 object StickChrome {
     const val MIN_TAB_MS = 350L
     @Volatile var onCycleTab: ((Int) -> Unit)? = null
+
+    fun bindCycleTab(handler: (Int) -> Unit) {
+        onCycleTab = handler
+    }
+
+    fun unbindCycleTab(handler: (Int) -> Unit) {
+        if (onCycleTab === handler) onCycleTab = null
+    }
     private var latchedTabDir = 0
     private var lastTabAt = 0L
 
@@ -200,7 +208,6 @@ object VoicePtt {
 
     fun dispatch(source: Int, keyCode: Int, down: Boolean, repeat: Int): Boolean {
         if (!TerminalPointer.shouldSwallowControllerKey(source, keyCode)) return false
-        if (down && repeat == 0) runCatching { android.util.Log.d("moshvr-keys", "controller key $keyCode source=$source") }
         if (isCancelKey(keyCode) && isBusy()) {
             if (down && repeat == 0) onCancel?.invoke()
             return true
@@ -212,5 +219,33 @@ object VoicePtt {
         if (!isHoldKey(keyCode)) return false
         if (down && repeat == 0) onToggle?.invoke()
         return true
+    }
+}
+
+/** TEMPORARY (0.1.2 bring-up): which controller inputs reach the app in 2D and immersive. */
+object InputDiag {
+    private var lastMotionLog = 0L
+
+    fun key(where: String, e: KeyEvent, gate: Boolean) {
+        if (e.action != KeyEvent.ACTION_DOWN || e.repeatCount != 0) return
+        runCatching {
+            android.util.Log.d("moshvr-keys", "$where key=${KeyEvent.keyCodeToString(e.keyCode)} src=0x${Integer.toHexString(e.source)} gate=$gate")
+        }
+    }
+
+    fun motion(where: String, e: MotionEvent, gate: Boolean) {
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - lastMotionLog < 250) return
+        val x = e.getAxisValue(MotionEvent.AXIS_X)
+        val y = e.getAxisValue(MotionEvent.AXIS_Y)
+        val h = e.getAxisValue(MotionEvent.AXIS_HSCROLL)
+        val v = e.getAxisValue(MotionEvent.AXIS_VSCROLL)
+        val hx = e.getAxisValue(MotionEvent.AXIS_HAT_X)
+        val hy = e.getAxisValue(MotionEvent.AXIS_HAT_Y)
+        if (maxOf(kotlin.math.abs(x), kotlin.math.abs(y), kotlin.math.abs(h), kotlin.math.abs(v), kotlin.math.abs(hx), kotlin.math.abs(hy)) < 0.3f) return
+        lastMotionLog = now
+        runCatching {
+            android.util.Log.d("moshvr-keys", "$where motion act=${e.actionMasked} src=0x${Integer.toHexString(e.source)} x=$x y=$y h=$h v=$v hat=$hx,$hy gate=$gate")
+        }
     }
 }

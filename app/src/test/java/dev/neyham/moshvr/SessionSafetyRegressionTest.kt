@@ -145,6 +145,20 @@ class VoiceOwnerIsolationTest {
     }
 
     @Test
+    fun handoffDisposeKeepsTheNewTabCycleHandler() {
+        var cycled = 0
+        val panelRoot: (Int) -> Unit = { error("disposed 2D root") }
+        val immersiveRoot: (Int) -> Unit = { cycled++ }
+        dev.neyham.moshvr.ui.StickChrome.bindCycleTab(panelRoot)
+        dev.neyham.moshvr.ui.StickChrome.bindCycleTab(immersiveRoot)
+        dev.neyham.moshvr.ui.StickChrome.unbindCycleTab(panelRoot)
+        dev.neyham.moshvr.ui.StickChrome.onCycleTab?.invoke(1)
+        assertEquals(1, cycled)
+        dev.neyham.moshvr.ui.StickChrome.unbindCycleTab(immersiveRoot)
+        assertNull(dev.neyham.moshvr.ui.StickChrome.onCycleTab)
+    }
+
+    @Test
     fun controllerBSendsEnterUnlessVoiceIsBusy() {
         val token = Any()
         var enters = 0

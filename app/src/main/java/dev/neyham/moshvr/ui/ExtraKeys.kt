@@ -24,6 +24,7 @@ object ExtraKeys {
         ExtraKeySpec("enter", "⏎ ENTER", ExtraKeyAction.Write("\r")),
         ExtraKeySpec("keyb", "KEYB", ExtraKeyAction.Keyboard),
         ExtraKeySpec("esc", "ESC", ExtraKeyAction.Write("\u001b")),
+        ExtraKeySpec("slash", "/", ExtraKeyAction.Write("/")),
         ExtraKeySpec("tab", "TAB", ExtraKeyAction.Write("\t")),
         ExtraKeySpec("ctrl", "CTRL", ExtraKeyAction.ToggleCtrl),
         ExtraKeySpec("alt", "ALT", ExtraKeyAction.ToggleAlt),
@@ -33,11 +34,7 @@ object ExtraKeys {
         ExtraKeySpec("right", "TAB▶", ExtraKeyAction.Write(HerdrKeys.nextTab)),
         ExtraKeySpec("ctrl-c", "^C", ExtraKeyAction.Write("\u0003")),
         ExtraKeySpec("ctrl-d", "^D", ExtraKeyAction.Write("\u0004")),
-        ExtraKeySpec("ctrl-z", "^Z", ExtraKeyAction.Write("\u001a")),
-        ExtraKeySpec("ctrl-r", "^R", ExtraKeyAction.Write("\u0012")),
         ExtraKeySpec("pipe", "|", ExtraKeyAction.Write("|")),
-        ExtraKeySpec("tilde", "~", ExtraKeyAction.Write("~")),
-        ExtraKeySpec("minus", "-", ExtraKeyAction.Write("-")),
     )
 
     /** The keys used most in a headset; pinned large at the right edge so they never scroll away. */

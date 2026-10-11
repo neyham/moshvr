@@ -63,10 +63,12 @@ fun MoshVrRoot(
     var knownHosts by remember { mutableStateOf(sessionManager.knownHosts.list()) }
     var fontSizePx by rememberSaveable { mutableIntStateOf(initialFontSizePx) }
     DisposableEffect(sessionManager) {
-        StickChrome.onCycleTab = { dir ->
+        val cycle: (Int) -> Unit = { dir ->
             sessionManager.active?.session?.write(HerdrKeys.tabChord(dir))
         }
-        onDispose { StickChrome.onCycleTab = null }
+        StickChrome.bindCycleTab(cycle)
+        // 2D↔VR handoff disposes the old root after the new one binds; don't unbind the new one.
+        onDispose { StickChrome.unbindCycleTab(cycle) }
     }
 
     MoshVrTheme {
