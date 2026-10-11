@@ -177,3 +177,17 @@ class AgyGrokReviewTest {
         assertTrue(dev.neyham.moshvr.session.MoshBootstrap.SERVER_ANSWER_TIMEOUT_MS in 5_000L..60_000L)
     }
 }
+
+class MoshBootstrapDeadlineTest {
+
+    @Test
+    fun bootstrapHasAWatchdogAndKeepsOutputOnTimeout() {
+        val src = listOf(
+            File("src/main/java/dev/neyham/moshvr/session/MoshBootstrap.kt"),
+            File("app/src/main/java/dev/neyham/moshvr/session/MoshBootstrap.kt"),
+        ).first { it.exists() }.readText()
+        assertTrue(src.contains("MoshBootstrapWatchdog"))
+        assertTrue(src.contains("if (System.currentTimeMillis() >= deadline) return answer(true)"))
+        assertTrue(src.contains("stdout.trim().takeLast(OUTPUT_TAIL_CHARS)"))
+    }
+}

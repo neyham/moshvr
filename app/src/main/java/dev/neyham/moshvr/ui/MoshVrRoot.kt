@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -62,6 +63,11 @@ fun MoshVrRoot(
     var showAbout by remember { mutableStateOf(false) }
     var showShortcuts by remember { mutableStateOf(false) }
     var knownHosts by remember { mutableStateOf(sessionManager.knownHosts.list()) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    // Stores refuse to overwrite a file they could not read or set aside; tell the user.
+    fun saving(block: () -> Unit) {
+        runCatching(block).onFailure { saveError = it.message ?: "Could not save" }
+    }
     var fontSizePx by rememberSaveable { mutableIntStateOf(initialFontSizePx) }
     DisposableEffect(sessionManager) {
         // Only while a terminal is on screen, not into a session hidden behind the connections list.
@@ -164,8 +170,8 @@ fun MoshVrRoot(
                             sessionManager.open(profile)
                             showHome = false
                         },
-                        onSave = { profiles = profileStore.upsert(it) },
-                        onDelete = { profiles = profileStore.delete(it) },
+                        onSave = { saving { profiles = profileStore.upsert(it) } },
+                        onDelete = { saving { profiles = profileStore.delete(it) } },
                         modifier = Modifier.weight(1f),
                     )
                 } else {
@@ -179,25 +185,36 @@ fun MoshVrRoot(
                 }
             }
 
+            saveError?.let { message ->
+                WindowSafeAlertDialog(
+                    onDismissRequest = { saveError = null },
+                    title = { Text("Not saved") },
+                    text = { Text(message, color = MoshVrColors.TextSecondary) },
+                    confirmButton = {
+                        TextButton(onClick = { saveError = null }) { Text("OK", color = MoshVrColors.Green) }
+                    },
+                )
+            }
+
             if (showSettings) {
                 SettingsDialog(
                     current = settingsStore.load(),
                     knownHosts = knownHosts,
                     onDismiss = { showSettings = false },
                     onSave = {
-                        settingsStore.save(it)
+                        saving { settingsStore.save(it) }
                         showSettings = false
                     },
                     onClearApiKey = {
-                        settingsStore.clearApiKey()
+                        saving { settingsStore.clearApiKey() }
                         showSettings = false
                     },
                     onForgetHost = { entry ->
-                        sessionManager.knownHosts.forget(entry.host, entry.port)
+                        saving { sessionManager.knownHosts.forget(entry.host, entry.port) }
                         knownHosts = sessionManager.knownHosts.list()
                     },
                     onClearKnownHosts = {
-                        sessionManager.knownHosts.clearAll()
+                        saving { sessionManager.knownHosts.clearAll() }
                         knownHosts = sessionManager.knownHosts.list()
                     },
                     onAbout = {

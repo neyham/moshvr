@@ -309,9 +309,12 @@ fun TerminalPane(
                     // Do not bind consent to an endpoint the user did not see in this dialog.
                     if (current.apiBaseUrl == consentSettings.apiBaseUrl &&
                         current.transcriptionModel == consentSettings.transcriptionModel) {
-                        settingsStore.save(current.withSpeechConsent(adultConfirmed))
                         showSttConsent = false
-                        voice.start()
+                        if (runCatching { settingsStore.save(current.withSpeechConsent(adultConfirmed)) }.isSuccess) {
+                            voice.start()
+                        } else {
+                            voiceStatus = "Could not save speech consent."
+                        }
                     } else {
                         showSttConsent = false
                         voiceStatus = "Speech settings changed. Tap MIC to review them again."

@@ -15,10 +15,10 @@ class SafeFile(val file: File) {
     val lock = Any()
 
     /** Set when an unreadable file could not be moved aside: never write over it. */
-    @Volatile private var blocked = false
+    private var blocked = false
 
     fun <T> load(default: () -> T, decode: (String) -> T): T = synchronized(lock) {
-        if (!file.exists()) return default()
+        if (blocked || !file.exists()) return default()
         runCatching { decode(file.readText()) }.getOrElse {
             quarantine()
             default()
@@ -26,7 +26,7 @@ class SafeFile(val file: File) {
     }
 
     fun writeText(text: String) = synchronized(lock) {
-        if (blocked) return
+        if (blocked) throw IOException("${file.name} is unreadable and could not be set aside; not overwriting it")
         val tmp = File(file.parentFile, file.name + ".tmp")
         FileOutputStream(tmp).use { out ->
             out.write(text.toByteArray(Charsets.UTF_8))
@@ -38,7 +38,10 @@ class SafeFile(val file: File) {
         }
     }
 
-    /** Keeps the unreadable file aside; if that fails, block writes rather than overwrite it. */
+    /**
+     * Keeps the unreadable file aside; if that fails, block: loads return the default without
+     * copying again, and saves fail loudly instead of overwriting it.
+     */
     private fun quarantine() {
         val aside = File(file.parentFile, "${file.name}.corrupt-${System.currentTimeMillis()}")
         if (file.renameTo(aside)) return

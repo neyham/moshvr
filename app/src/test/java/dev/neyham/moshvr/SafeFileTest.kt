@@ -60,3 +60,23 @@ class SafeFileConcurrencyTest {
         assertEquals(1, d.listFiles()!!.count { it.name.contains(".corrupt-") })
     }
 }
+
+class SafeFileBlockedTest {
+
+    @Test
+    fun unmovableCorruptFileBlocksSavesLoudlyAndIsCopiedOnce() {
+        val d = java.nio.file.Files.createTempDirectory("safefile-blocked").toFile()
+        val file = File(d, "profiles.json").apply { writeText("not json") }
+        d.setWritable(false) // rename, copy and delete all fail
+        try {
+            val f = SafeFile(file)
+            repeat(3) { assertEquals("default", f.load({ "default" }) { error("bad") }) }
+            val thrown = runCatching { f.writeText("new") }.exceptionOrNull()
+            assertTrue(thrown is java.io.IOException)
+            assertEquals("not json", file.readText())
+            assertEquals(1, d.listFiles()!!.size)
+        } finally {
+            d.setWritable(true)
+        }
+    }
+}
