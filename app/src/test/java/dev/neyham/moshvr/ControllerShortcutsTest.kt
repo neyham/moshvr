@@ -44,30 +44,58 @@ class ControllerShortcutsTest {
         assertEquals(listOf(ControllerAction.ToggleKeyboard), c.update(Pad.X, 0))
         assertEquals(listOf(ControllerAction.Esc), c.update(Pad.Y, 10))
         assertEquals(listOf(ControllerAction.Tab), c.update(Pad.L_CLICK, 20))
-        c.update(0, 30)
-        assertEquals(listOf(ControllerAction.Arrow(KeyEvent.KEYCODE_DPAD_UP)), c.update(Pad.L_UP, 1000))
-        assertTrue(c.update(Pad.L_UP, 1200).isEmpty())
-        assertEquals(listOf(ControllerAction.Arrow(KeyEvent.KEYCODE_DPAD_UP)), c.update(Pad.L_UP, 1401))
-        assertTrue(c.update(Pad.L_UP, 1450).isEmpty())
-        assertEquals(1, c.update(Pad.L_UP, 1512).size)
+        c.update(Pad.GRIP_L, 30)
+        val up = Pad.GRIP_L or Pad.L_UP
+        assertEquals(listOf(ControllerAction.Arrow(KeyEvent.KEYCODE_DPAD_UP)), c.update(up, 1000))
+        assertTrue(c.update(up, 1200).isEmpty())
+        assertEquals(listOf(ControllerAction.Arrow(KeyEvent.KEYCODE_DPAD_UP)), c.update(up, 1401))
+        assertTrue(c.update(up, 1450).isEmpty())
+        assertEquals(1, c.update(up, 1512).size)
+        assertEquals(
+            listOf(ControllerAction.Arrow(KeyEvent.KEYCODE_DPAD_LEFT)),
+            c.update(Pad.GRIP_L or Pad.L_LEFT, 1600),
+        )
     }
 
     @Test
-    fun leftGripScrollFallbackIsOneRowAtAnEvenPace() {
+    fun leftStickScrollFallbackIsOneRowAtAnEvenPace() {
         val c = ControllerShortcuts()
-        c.update(Pad.GRIP_L, 0)
         // Waits a beat first so the SDK's native stick scroll can take over.
-        assertTrue(c.update(Pad.GRIP_L or Pad.L_UP, 10).isEmpty())
-        assertTrue(c.update(Pad.GRIP_L or Pad.L_UP, 100).isEmpty())
+        assertTrue(c.update(Pad.L_UP, 10).isEmpty())
+        assertTrue(c.update(Pad.L_UP, 100).isEmpty())
         var t = 10 + ControllerShortcuts.SCROLL_FIRST_MS
         repeat(5) {
-            assertEquals(listOf(ControllerAction.Scroll(-1)), c.update(Pad.GRIP_L or Pad.L_UP, t))
+            assertEquals(listOf(ControllerAction.Scroll(-1)), c.update(Pad.L_UP, t))
             t += ControllerShortcuts.SCROLL_REPEAT_MS
         }
     }
 
     @Test
-    fun nativeStickScrollOnlyPassesWhileTheLeftGripIsHeld() {
+    fun scrollingNeverTypesAKey() {
+        val c = ControllerShortcuts()
+        // Up, sweeping through the side, then down: no key may reach the terminal.
+        val sweep = listOf(Pad.L_UP, Pad.L_UP or Pad.L_LEFT, Pad.L_LEFT, Pad.L_DOWN or Pad.L_LEFT, Pad.L_DOWN)
+        var t = 0L
+        repeat(3) {
+            for (state in sweep) {
+                assertTrue(c.update(state, t).none { it is ControllerAction.Arrow })
+                t += 40
+            }
+        }
+        assertTrue(c.update(Pad.L_LEFT, t).isEmpty())
+        assertTrue(c.update(Pad.L_RIGHT, t + 500).isEmpty())
+    }
+
+    @Test
+    fun nativeScrollOnlyForAPlainLeftStick() {
+        assertTrue(ControllerShortcuts.nativeScrollAllowed(Pad.L_UP))
+        assertFalse(ControllerShortcuts.nativeScrollAllowed(Pad.GRIP_L or Pad.L_UP))
+        assertFalse(ControllerShortcuts.nativeScrollAllowed(Pad.R_DOWN))
+        assertFalse(ControllerShortcuts.nativeScrollAllowed(Pad.R_LEFT))
+    }
+
+    @Test
+    fun nativeStickScrollPassesOnlyWhenAllowed() {
         val sc = dev.neyham.moshvr.ui.StickChrome
         val scroll = android.view.MotionEvent.ACTION_SCROLL
         sc.sticksMapped = true

@@ -48,8 +48,9 @@ sealed class ControllerAction {
  *
  * Right: grip held = talk, A = Enter, B = Backspace, stick ←→ herdr tab, ↑↓ herdr workspace,
  *        stick click = Ctrl+C.
- * Left:  X = keyboard, Y = Esc, stick = arrow keys (repeat while held), grip + stick ↑↓ = scroll
- *        (the SDK's native stick scroll is let through while the grip is held), stick click = Tab.
+ * Left:  X = keyboard, Y = Esc, stick ↑↓ = scroll (the SDK's native stick scroll), grip + stick =
+ *        arrow keys (repeat while held), stick click = Tab. Stick ←→ alone does nothing, so a
+ *        sweeping scroll that passes sideways can never type a key.
  */
 class ControllerShortcuts {
     private var prev = 0
@@ -81,17 +82,24 @@ class ControllerShortcuts {
         return out
     }
 
-    /** Left stick: one action on push, then auto-repeat while held, like a held arrow key. */
+    /**
+     * Left stick. Alone, ↑↓ scrolls; with the grip held it is an arrow key: one press on push,
+     * then auto-repeat while held. Any key reaching the terminal snaps it back to the bottom,
+     * so scrolling must never emit one.
+     */
     private fun leftStick(state: Int, pressed: Int, nowMs: Long): ControllerAction? {
         val dir = LEFT_DIRS.firstOrNull { state and it != 0 } ?: 0
-        if (dir == 0) {
+        val arrows = state and Pad.GRIP_L != 0
+        val scrolling = !arrows && (dir == Pad.L_UP || dir == Pad.L_DOWN)
+        if (dir == 0 || !arrows && !scrolling) {
             heldArrow = 0
             return null
         }
-        val scrolling = state and Pad.GRIP_L != 0 && (dir == Pad.L_UP || dir == Pad.L_DOWN)
-        val fresh = pressed and dir != 0 || dir != heldArrow
+        // Grip changes start a fresh gesture too, so scroll never turns into a repeating arrow.
+        val held = if (arrows) dir or ARROW_MODE else dir
+        val fresh = pressed and dir != 0 || held != heldArrow
         if (fresh) {
-            heldArrow = dir
+            heldArrow = held
             nextRepeatAt = nowMs + if (scrolling) SCROLL_FIRST_MS else ARROW_FIRST_REPEAT_MS
             // Scrolling waits a beat: the SDK's own stick scroll usually arrives and takes over.
             if (scrolling) return null
@@ -112,9 +120,18 @@ class ControllerShortcuts {
         /** Fallback only, one row per tick like the SDK scroll at full stick. */
         const val SCROLL_FIRST_MS = 120L
         const val SCROLL_REPEAT_MS = 70L
+        private const val ARROW_MODE = 1 shl 30
 
         /** Only triggers click panels, so A and X are free for shortcuts. */
         const val CLICK_BUTTONS = Pad.TRIGGER_L or Pad.TRIGGER_R
+
+        /**
+         * The SDK's smooth stick scroll reaches the terminal only for a plain left-stick scroll:
+         * not while the grip makes the stick arrow keys, nor while the right stick switches herdr.
+         */
+        fun nativeScrollAllowed(state: Int): Boolean =
+            state and Pad.GRIP_L == 0 &&
+                state and (Pad.R_UP or Pad.R_DOWN or Pad.R_LEFT or Pad.R_RIGHT) == 0
 
         private val LEFT_DIRS = intArrayOf(Pad.L_UP, Pad.L_DOWN, Pad.L_LEFT, Pad.L_RIGHT)
         private val ARROW_KEYS = mapOf(

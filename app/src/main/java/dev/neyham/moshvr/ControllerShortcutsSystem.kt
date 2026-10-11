@@ -28,9 +28,7 @@ class ControllerShortcutsSystem(
                 state = state or controller.buttonState
             }
         }
-        // Left grip held (right stick not pushed up/down): let the SDK's smooth stick scroll through.
-        StickChrome.nativeScrollAllowed = state and Pad.GRIP_L != 0 &&
-            state and (Pad.R_UP or Pad.R_DOWN) == 0
+        StickChrome.nativeScrollAllowed = ControllerShortcuts.nativeScrollAllowed(state)
         // Keep edge tracking current even while disabled, so nothing fires on re-enable.
         val actions = shortcuts.update(state, SystemClock.uptimeMillis())
         if (!enabled()) return

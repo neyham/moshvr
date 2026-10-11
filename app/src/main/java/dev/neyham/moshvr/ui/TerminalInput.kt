@@ -60,7 +60,7 @@ object StickChrome {
     /** True while immersive controller shortcuts own both sticks (see ControllerShortcuts). */
     @Volatile var sticksMapped: Boolean = false
 
-    /** Left grip held: SDK stick scrolls pass through for the familiar smooth scrolling. */
+    /** Plain left-stick scroll: SDK stick scrolls pass through for the familiar smooth scrolling. */
     @Volatile var nativeScrollAllowed: Boolean = false
 
     @Volatile var lastNativeScrollAt: Long = 0L
