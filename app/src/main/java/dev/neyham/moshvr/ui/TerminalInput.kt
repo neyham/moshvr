@@ -147,6 +147,9 @@ object StickChrome {
         val rows = com.termux.view.StickScroll.rowsForDpad(keyCode)
         val tabs = com.termux.view.StickScroll.tabsForDpad(keyCode)
         if (rows == 0 && tabs == 0) return false
+        // Immersive: ControllerShortcuts owns both sticks. A DPAD key here is the system's
+        // focus navigation echoing a stick; swallow it so it neither moves focus nor switches herdr.
+        if (sticksMapped) return true
         // Quest 2D focus-nav synthesizes DPAD with SOURCE_KEYBOARD after a chrome click.
         if (!down) {
             // Each release re-arms the tab latch, so two separate presses switch twice.
@@ -163,6 +166,9 @@ object StickChrome {
     }
 
     fun dispatchMotion(view: TerminalView?, event: MotionEvent): Boolean {
+        // Immersive: sticks are handled by ControllerShortcuts; SDK scrolls go on to the panel,
+        // where dropPanelScroll lets only a plain left-stick scroll through.
+        if (sticksMapped) return false
         val hscroll = event.getAxisValue(MotionEvent.AXIS_HSCROLL)
         if (event.actionMasked == MotionEvent.ACTION_SCROLL) {
             val vscroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
@@ -236,9 +242,10 @@ object VoicePolicy {
 }
 
 /**
- * Controller shortcuts, modelled on the user's voice-remote layout, so nothing needs aiming:
+ * 2D-mode controller keys, modelled on the user's voice-remote layout, so nothing needs aiming:
  * X / grips toggle voice, Y opens the keyboard, B is Enter (sends a dictated draft),
- * and B cancels while voice is recording or transcribing.
+ * and B cancels while voice is recording or transcribing. Immersive mode maps the buttons in
+ * ControllerShortcuts instead; there it only holds the callbacks.
  */
 object VoicePtt {
     @Volatile var onToggle: (() -> Unit)? = null
@@ -297,8 +304,16 @@ object VoicePtt {
 
     fun isKeyboardKey(keyCode: Int): Boolean = keyCode == KeyEvent.KEYCODE_BUTTON_Y
 
+    private fun isOwnKey(keyCode: Int): Boolean =
+        isHoldKey(keyCode) || isCancelKey(keyCode) || isKeyboardKey(keyCode)
+
     fun dispatch(source: Int, keyCode: Int, down: Boolean, repeat: Int): Boolean {
         if (!TerminalPointer.shouldSwallowControllerKey(source, keyCode)) return false
+        // On the connections list the buttons keep their normal meaning.
+        if (!hasTerminal()) return false
+        // Immersive: ControllerShortcuts maps the buttons (A = Enter, B = Backspace, ...). A key
+        // event for one of them must not fire this older 2D layout as well.
+        if (StickChrome.sticksMapped) return isOwnKey(keyCode)
         if (isCancelKey(keyCode) && isBusy()) {
             if (down && repeat == 0) onCancel?.invoke()
             return true

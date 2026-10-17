@@ -648,7 +648,6 @@ public final class TerminalView extends View {
         doScroll(ev, rowsDown);
         ev.recycle();
         if (onExternalScroll != null) onExternalScroll.accept(rowsDown);
-        android.util.Log.i("MoshVrStick", "scrollLines " + rowsDown);
     }
 
     private boolean applyStickAxis(float axis) {

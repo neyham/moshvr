@@ -199,7 +199,9 @@ class TerminalPointerRegressionTest {
     @Test
     fun voicePttTogglesOnPressNotRelease() {
         var n = 0
-        dev.neyham.moshvr.ui.VoicePtt.onToggle = { n++ }
+        // Only with a terminal on screen (see VoicePtt.hasTerminal).
+        val token = Any()
+        dev.neyham.moshvr.ui.VoicePtt.bind(token, toggle = { n++ }, cancel = {})
         try {
             val src = android.view.InputDevice.SOURCE_GAMEPAD
             val x = android.view.KeyEvent.KEYCODE_BUTTON_X
@@ -208,7 +210,7 @@ class TerminalPointerRegressionTest {
             assertTrue(dev.neyham.moshvr.ui.VoicePtt.dispatch(src, x, true, 1))
             assertEquals(1, n)
         } finally {
-            dev.neyham.moshvr.ui.VoicePtt.onToggle = null
+            dev.neyham.moshvr.ui.VoicePtt.unbind(token)
         }
     }
 }

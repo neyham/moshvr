@@ -48,6 +48,7 @@ fun ProfileEditorDialog(
     var keyPassphrase by remember { mutableStateOf("") }
     var startupCommand by remember { mutableStateOf(initial?.startupCommand ?: "") }
     var useMosh by remember { mutableStateOf(initial?.useMosh ?: false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
     val window = MicPermission.findActivity(LocalContext.current)?.window
     DisposableEffect(showPrivateKey) {
         if (showPrivateKey) {
@@ -69,6 +70,7 @@ fun ProfileEditorDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                saveError?.let { Text(it, color = MoshVrColors.Error) }
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -175,7 +177,9 @@ fun ProfileEditorDialog(
             TextButton(
                 onClick = {
                     if (host.isBlank() || username.isBlank()) return@TextButton
-                    val profile = HostProfile(
+                    // The Android keystore can refuse to encrypt; say so instead of crashing.
+                    val profile = runCatching {
+                        HostProfile(
                         id = initial?.id ?: UUID.randomUUID().toString(),
                         name = name.trim(),
                         host = host.trim(),
@@ -199,7 +203,11 @@ fun ProfileEditorDialog(
                         },
                         startupCommand = startupCommand.trim().ifBlank { null },
                         useMosh = useMosh,
-                    )
+                        )
+                    }.getOrElse {
+                        saveError = "Could not encrypt the credentials: ${it.message ?: it.javaClass.simpleName}"
+                        return@TextButton
+                    }
                     onSave(profile)
                 },
             ) { Text("Save", color = MoshVrColors.Green) }

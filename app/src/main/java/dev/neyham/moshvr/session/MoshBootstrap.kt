@@ -1,6 +1,7 @@
 package dev.neyham.moshvr.session
 
 import com.trilead.ssh2.ChannelCondition
+import com.trilead.ssh2.Connection
 import com.trilead.ssh2.Session
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
@@ -19,8 +20,37 @@ object MoshBootstrap {
     const val SERVER_ANSWER_TIMEOUT_MS = 20_000L
     private const val WATCHDOG_GRACE_MS = 2_000L
     private const val OUTPUT_TAIL_CHARS = 2_000
+    /** Per stream. MOSH CONNECT is one short line; a chatty login script must not fill memory. */
+    internal const val KEEP_BYTES = 16 * 1024
 
     data class Endpoint(val ip: String, val port: Int, val key: String)
+
+    /** Lets a closed tab stop its bootstrap at once instead of waiting out the deadline. */
+    class Abort {
+        @Volatile private var aborted = false
+        @Volatile private var conn: Connection? = null
+
+        fun abort() {
+            aborted = true
+            conn?.let { runCatching { it.close() } }
+        }
+
+        internal fun attach(c: Connection) {
+            conn = c
+            if (aborted) {
+                runCatching { c.close() }
+                throw IOException("Closed")
+            }
+        }
+    }
+
+    /** Keeps only the newest [KEEP_BYTES]; older output can no longer hold a fresh answer. */
+    internal fun keepTail(b: ByteArrayOutputStream) {
+        if (b.size() <= KEEP_BYTES * 2) return
+        val all = b.toByteArray()
+        b.reset()
+        b.write(all, all.size - KEEP_BYTES, KEEP_BYTES)
+    }
 
     internal val CONNECT_RE = Regex("""MOSH CONNECT (\d+) ([A-Za-z0-9+/]{22})""")
 
@@ -68,7 +98,10 @@ object MoshBootstrap {
             for ((stream, into) in listOf(session.stdout to out, session.stderr to err)) {
                 if (stream.available() > 0) {
                     val n = stream.read(buffer)
-                    if (n > 0) into.write(buffer, 0, n)
+                    if (n > 0) {
+                        into.write(buffer, 0, n)
+                        keepTail(into)
+                    }
                     return true
                 }
             }
@@ -100,12 +133,13 @@ object MoshBootstrap {
         }
     }
 
-    fun run(profile: HostProfile, knownHosts: KnownHostsStore, ownerId: String): Endpoint {
+    fun run(profile: HostProfile, knownHosts: KnownHostsStore, ownerId: String, abort: Abort = Abort()): Endpoint {
         val ip = InetAddress.getByName(profile.host).hostAddress
             ?: throw IOException("Could not resolve ${profile.host}")
 
         val conn = SshAuth.connectAndAuthenticate(profile, knownHosts, ownerId)
         try {
+            abort.attach(conn)
             val session = conn.openSession()
             try {
                 // sshlib sessions have no LANG; mosh-server refuses US-ASCII and dumps LC_*.

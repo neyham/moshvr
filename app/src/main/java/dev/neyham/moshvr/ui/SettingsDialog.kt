@@ -33,7 +33,6 @@ fun SettingsDialog(
     knownHosts: List<KnownHostEntry>,
     onDismiss: () -> Unit,
     onSave: (AppSettings) -> Unit,
-    onClearApiKey: () -> Unit,
     onForgetHost: (KnownHostEntry) -> Unit,
     onClearKnownHosts: () -> Unit,
     onAbout: () -> Unit,
@@ -46,6 +45,12 @@ fun SettingsDialog(
     var keepScreenOn by remember { mutableStateOf(current.keepScreenOn) }
     var sttConsent by remember { mutableStateOf(current.hasSpeechConsent) }
     var adultConfirmed by remember { mutableStateOf(current.hasSpeechConsent) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    // The Android keystore can refuse to encrypt; say so instead of crashing.
+    fun sealedKey(): String? =
+        runCatching { CryptoStore.encrypt(apiKey.trim()) }
+            .onFailure { saveError = "Could not encrypt the API key: ${it.message ?: it.javaClass.simpleName}" }
+            .getOrNull()
 
     WindowSafeAlertDialog(
         onDismissRequest = onDismiss,
@@ -58,12 +63,14 @@ fun SettingsDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                saveError?.let { Text(it, color = MoshVrColors.Error) }
                 Text("Speech provider", color = MoshVrColors.TextPrimary)
                 SpeechProvider.entries.forEach { choice ->
                     TextButton(onClick = {
                         if (choice != draft.speechProvider) {
+                            val key = if (apiKey.isBlank()) draft.encApiKey else sealedKey() ?: return@TextButton
                             draft = draft.copy(
-                                encApiKey = if (apiKey.isNotBlank()) CryptoStore.encrypt(apiKey.trim()) else draft.encApiKey,
+                                encApiKey = key,
                                 transcriptionModel = model, apiBaseUrl = baseUrl, speechAppId = appId,
                             ).selectSpeechProvider(choice)
                             apiKey = ""
@@ -172,8 +179,9 @@ fun SettingsDialog(
             TextButton(onClick = {
                 val url = baseUrl.trim().ifBlank { draft.speechProvider.defaultUrl }
                 val https = SttPolicy.isHttps(url)
+                val key = if (apiKey.isBlank()) draft.encApiKey else sealedKey() ?: return@TextButton
                 val edited = draft.copy(
-                    encApiKey = if (apiKey.isNotBlank()) CryptoStore.encrypt(apiKey.trim()) else draft.encApiKey,
+                    encApiKey = key,
                     transcriptionModel = model.trim().ifBlank { draft.speechProvider.defaultModel },
                     apiBaseUrl = if (https) url else draft.apiBaseUrl,
                     keepScreenOn = keepScreenOn,

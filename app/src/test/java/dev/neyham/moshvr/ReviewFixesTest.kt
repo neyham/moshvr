@@ -191,3 +191,105 @@ class MoshBootstrapDeadlineTest {
         assertTrue(src.contains("stdout.trim().takeLast(OUTPUT_TAIL_CHARS)"))
     }
 }
+
+/** Regressions from the 2026-10-17 agy review. */
+class AgyFollowUpReviewTest {
+
+    private fun read(path: String): String =
+        listOf(File(path), File(path.removePrefix("app/"))).firstOrNull { it.exists() }?.readText()
+            ?: error("missing $path")
+
+    @Test
+    fun immersiveSticksNeverReachTheActivityShortcuts() {
+        var workspace = 0
+        var tab = 0
+        val onWorkspace: (Int) -> Unit = { workspace++ }
+        val onTab: (Int) -> Unit = { tab++ }
+        StickChrome.bindCycleWorkspace(onWorkspace)
+        StickChrome.bindCycleTab(onTab)
+        StickChrome.sticksMapped = true
+        try {
+            for (code in intArrayOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_LEFT)) {
+                // Swallowed (no focus navigation), but no herdr switch either.
+                assertTrue(StickChrome.dispatchKey(InputDevice.SOURCE_KEYBOARD, code, true, 0, null))
+            }
+            assertEquals(0, workspace)
+            assertEquals(0, tab)
+        } finally {
+            StickChrome.sticksMapped = false
+            StickChrome.unbindCycleWorkspace(onWorkspace)
+            StickChrome.unbindCycleTab(onTab)
+            StickChrome.edgeTab(0)
+        }
+    }
+
+    @Test
+    fun oldButtonLayoutIsOffInImmersiveAndOnTheConnectionsList() {
+        val ptt = dev.neyham.moshvr.ui.VoicePtt
+        var enters = 0
+        val token = Any()
+        ptt.unbind(token)
+        // No terminal: the button keeps its normal meaning.
+        assertFalse(ptt.dispatch(InputDevice.SOURCE_GAMEPAD, KeyEvent.KEYCODE_BUTTON_B, true, 0))
+        ptt.bind(token, toggle = {}, cancel = {}, enter = { enters++ })
+        try {
+            StickChrome.sticksMapped = true
+            assertTrue(ptt.dispatch(InputDevice.SOURCE_GAMEPAD, KeyEvent.KEYCODE_BUTTON_B, true, 0))
+            assertEquals(0, enters)
+            StickChrome.sticksMapped = false
+            assertTrue(ptt.dispatch(InputDevice.SOURCE_GAMEPAD, KeyEvent.KEYCODE_BUTTON_B, true, 0))
+            assertEquals(1, enters)
+        } finally {
+            StickChrome.sticksMapped = false
+            ptt.unbind(token)
+        }
+    }
+
+    @Test
+    fun bootstrapOutputIsBounded() {
+        val keep = dev.neyham.moshvr.session.MoshBootstrap.KEEP_BYTES
+        val b = java.io.ByteArrayOutputStream()
+        repeat(100) {
+            b.write(ByteArray(8192) { 'x'.code.toByte() })
+            dev.neyham.moshvr.session.MoshBootstrap.keepTail(b)
+            assertTrue(b.size() <= keep * 2)
+        }
+        b.write("MOSH CONNECT 60001 abcdefghijklmnopqrstuv\n".toByteArray())
+        dev.neyham.moshvr.session.MoshBootstrap.keepTail(b)
+        assertTrue(dev.neyham.moshvr.session.MoshBootstrap.CONNECT_RE.containsMatchIn(b.toString("UTF-8")))
+    }
+
+    @Test
+    fun closingATabAbortsItsBootstrap() {
+        val src = read("app/src/main/java/dev/neyham/moshvr/session/MoshTerminalSession.kt")
+        assertTrue(src.contains("bootstrapAbort.abort()"))
+        assertTrue(read("app/src/main/java/dev/neyham/moshvr/session/MoshBootstrap.kt").contains("abort.attach(conn)"))
+    }
+
+    @Test
+    fun terminfoCountsAsInstalledOnlyWhenComplete() {
+        val root = java.nio.file.Files.createTempDirectory("terminfo").toFile()
+        try {
+            val installer = dev.neyham.moshvr.session.TerminfoInstaller
+            assertFalse(installer.complete(root))
+            File(root, "x").mkdirs()
+            File(root, "x/xterm-256color").writeText("ti")
+            assertFalse(installer.complete(root))
+            File(root, "78").mkdirs()
+            File(root, "78/xterm-256color").writeText("")
+            assertFalse(installer.complete(root))
+            File(root, "78/xterm-256color").writeText("ti")
+            assertTrue(installer.complete(root))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun dictationSurvivesAMissingServiceAndASilentStop() {
+        val src = read("app/src/main/java/dev/neyham/moshvr/voice/OnDeviceDictation.kt")
+        assertTrue(src.contains("onError(DictationText.UNAVAILABLE)"))
+        assertTrue(src.contains("STOP_TIMEOUT_MS)"))
+        assertFalse(read("terminal-view/src/main/java/com/termux/view/TerminalView.java".let { "../$it" }).contains("MoshVrStick"))
+    }
+}

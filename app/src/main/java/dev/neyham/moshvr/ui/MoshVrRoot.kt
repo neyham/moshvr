@@ -205,10 +205,6 @@ fun MoshVrRoot(
                         saving { settingsStore.save(it) }
                         showSettings = false
                     },
-                    onClearApiKey = {
-                        saving { settingsStore.clearApiKey() }
-                        showSettings = false
-                    },
                     onForgetHost = { entry ->
                         saving { sessionManager.knownHosts.forget(entry.host, entry.port) }
                         knownHosts = sessionManager.knownHosts.list()

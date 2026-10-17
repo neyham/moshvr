@@ -30,6 +30,7 @@ class MoshTerminalSession(
     private var ptyFd = -1
 
     private val lifecycle = MoshLifecycle()
+    private val bootstrapAbort = MoshBootstrap.Abort()
     private val processLock = Any()
 
     private var columns = 80
@@ -49,7 +50,7 @@ class MoshTerminalSession(
         Thread({
             try {
                 showSystemMessage("[mosh] bootstrapping over ssh...\r\n")
-                val endpoint = MoshBootstrap.run(profile, knownHosts, ownerId)
+                val endpoint = MoshBootstrap.run(profile, knownHosts, ownerId, bootstrapAbort)
                 if (lifecycle.closed) return@Thread
                 showSystemMessage("[mosh] connected to ${endpoint.ip}:${endpoint.port}\r\n")
                 startClient(endpoint)
@@ -170,6 +171,8 @@ class MoshTerminalSession(
 
     override fun finishIfRunning() {
         val wasListed = isRunning
+        // Don't leave the SSH bootstrap (and a fresh mosh-server) running for a closed tab.
+        bootstrapAbort.abort()
         synchronized(processLock) {
             lifecycle.close().running?.let { reclaimProcess(it.pid, it.ptyFd) }
             ptyFd = -1
