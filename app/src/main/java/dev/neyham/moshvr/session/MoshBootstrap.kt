@@ -27,17 +27,27 @@ object MoshBootstrap {
 
     /** Lets a closed tab stop its bootstrap at once instead of waiting out the deadline. */
     class Abort {
-        @Volatile private var aborted = false
-        @Volatile private var conn: Connection? = null
+        private var aborted = false
+        private var conn: Connection? = null
 
+        /** Called from the UI thread: close() sends a disconnect and can wait on sshlib's lock. */
         fun abort() {
-            aborted = true
-            conn?.let { runCatching { it.close() } }
+            val c = synchronized(this) {
+                aborted = true
+                conn
+            } ?: return
+            Thread({ runCatching { c.close() } }, "MoshBootstrapAbort").apply {
+                isDaemon = true
+                start()
+            }
         }
 
         internal fun attach(c: Connection) {
-            conn = c
-            if (aborted) {
+            val closed = synchronized(this) {
+                conn = c
+                aborted
+            }
+            if (closed) {
                 runCatching { c.close() }
                 throw IOException("Closed")
             }

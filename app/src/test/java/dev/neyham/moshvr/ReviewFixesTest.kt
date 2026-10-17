@@ -196,7 +196,7 @@ class MoshBootstrapDeadlineTest {
 class AgyFollowUpReviewTest {
 
     private fun read(path: String): String =
-        listOf(File(path), File(path.removePrefix("app/"))).firstOrNull { it.exists() }?.readText()
+        listOf(File(path), File(path.removePrefix("app/")), File("../$path")).firstOrNull { it.exists() }?.readText()
             ?: error("missing $path")
 
     @Test
@@ -290,6 +290,6 @@ class AgyFollowUpReviewTest {
         val src = read("app/src/main/java/dev/neyham/moshvr/voice/OnDeviceDictation.kt")
         assertTrue(src.contains("onError(DictationText.UNAVAILABLE)"))
         assertTrue(src.contains("STOP_TIMEOUT_MS)"))
-        assertFalse(read("terminal-view/src/main/java/com/termux/view/TerminalView.java".let { "../$it" }).contains("MoshVrStick"))
+        assertFalse(read("terminal-view/src/main/java/com/termux/view/TerminalView.java").contains("MoshVrStick"))
     }
 }
