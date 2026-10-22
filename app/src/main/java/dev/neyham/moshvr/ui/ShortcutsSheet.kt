@@ -29,7 +29,7 @@ object ShortcutsCheatsheet {
                 "B" to "Backspace; while talking: cancel",
                 "Stick ← →" to "herdr previous / next tab",
                 "Stick ↑ ↓" to "herdr previous / next workspace",
-                "Stick press" to "Ctrl+C",
+                "Stick press" to "Ctrl+C (stick centred; sent on release)",
             ),
         ),
         Section(
@@ -38,7 +38,7 @@ object ShortcutsCheatsheet {
                 "Trigger" to "Click",
                 "X" to "Show / hide keyboard",
                 "Y" to "Esc",
-                "Stick ↑ ↓" to "Scroll the terminal",
+                "Stick ↑ ↓" to "Scroll the terminal (hold to speed up)",
                 "Grip + stick" to "Arrow keys (hold to repeat)",
                 "Stick press" to "Tab",
             ),

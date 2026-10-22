@@ -43,6 +43,7 @@ fun SettingsDialog(
     var model by remember { mutableStateOf(current.transcriptionModel) }
     var baseUrl by remember { mutableStateOf(current.apiBaseUrl) }
     var keepScreenOn by remember { mutableStateOf(current.keepScreenOn) }
+    var dictationLanguage by remember { mutableStateOf(current.dictationLanguage) }
     var sttConsent by remember { mutableStateOf(current.hasSpeechConsent) }
     var adultConfirmed by remember { mutableStateOf(current.hasSpeechConsent) }
     var saveError by remember { mutableStateOf<String?>(null) }
@@ -143,6 +144,14 @@ fun SettingsDialog(
                         onCheckedChange = { sttConsent = it })
                     Text("  I consent to cloud speech uploads", color = MoshVrColors.TextSecondary)
                 }
+                Text("Headset speech language (MIC without an API key)", color = MoshVrColors.TextPrimary)
+                Row {
+                    dev.neyham.moshvr.voice.OnDeviceDictation.LANGUAGES.forEach { (tag, label) ->
+                        TextButton(onClick = { dictationLanguage = tag }) {
+                            Text((if (dictationLanguage == tag) "✓ " else "") + label)
+                        }
+                    }
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Switch(checked = keepScreenOn, onCheckedChange = { keepScreenOn = it })
                     Text("  Keep screen on while the terminal is open", color = MoshVrColors.TextSecondary)
@@ -185,6 +194,7 @@ fun SettingsDialog(
                     transcriptionModel = model.trim().ifBlank { draft.speechProvider.defaultModel },
                     apiBaseUrl = if (https) url else draft.apiBaseUrl,
                     keepScreenOn = keepScreenOn,
+                    dictationLanguage = dictationLanguage,
                     speechAppId = appId.trim(),
                 )
                 onSave(

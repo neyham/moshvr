@@ -29,6 +29,10 @@ class MoshTerminalSession(
     @Volatile
     private var ptyFd = -1
 
+    /** Set when the SSH bootstrap failed: no process ran, so "(signal 1)" would mislead. */
+    @Volatile
+    private var bootstrapFailed = false
+
     private val lifecycle = MoshLifecycle()
     private val bootstrapAbort = MoshBootstrap.Abort()
     private val processLock = Any()
@@ -58,6 +62,7 @@ class MoshTerminalSession(
                 if (!lifecycle.closed) {
                     showSystemMessage("\r\n\u001b[31m[mosh bootstrap failed: ${e.message}]\u001b[0m\r\n")
                 }
+                bootstrapFailed = true
                 mMainThreadHandler.sendMessage(mMainThreadHandler.obtainMessage(MSG_PROCESS_EXITED, -1))
             }
         }, "MoshBootstrap[$mHandle]").start()
@@ -68,6 +73,7 @@ class MoshTerminalSession(
         val exe = File(context.applicationInfo.nativeLibraryDir, CLIENT_SO).absolutePath
         if (!File(exe).exists()) {
             showSystemMessage("\u001b[31m[mosh-client binary missing from this build]\u001b[0m\r\n")
+            bootstrapFailed = true
             mMainThreadHandler.sendMessage(mMainThreadHandler.obtainMessage(MSG_PROCESS_EXITED, -1))
             return
         }
@@ -168,6 +174,9 @@ class MoshTerminalSession(
             mEmulator.resize(columns, rows, cellWidthPixels, cellHeightPixels)
         }
     }
+
+    override fun exitDescription(exitCode: Int): String =
+        if (bootstrapFailed) "\r\n[press Enter to retry]" else super.exitDescription(exitCode)
 
     override fun finishIfRunning() {
         val wasListed = isRunning

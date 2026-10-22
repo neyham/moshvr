@@ -15,6 +15,8 @@ import android.speech.SpeechRecognizer
  */
 class OnDeviceDictation(
     private val context: Context,
+    /** BCP-47 tag, or blank for the headset's system language. */
+    private val language: () -> String = { "" },
     private val onListening: (Boolean) -> Unit,
     private val onPartial: (String) -> Unit,
     private val onFinal: (String) -> Unit,
@@ -36,6 +38,13 @@ class OnDeviceDictation(
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            // Hold-to-talk: ask for a longer pause before the take ends (a hint; recognizers may ignore it).
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, SILENCE_MS)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, SILENCE_MS)
+        language().takeIf { it.isNotBlank() }?.let {
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, it)
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, it)
+        }
         listening = true
         onListening(true)
         // The system speech service can be missing or refuse to bind; report it, don't crash.
@@ -139,6 +148,10 @@ class OnDeviceDictation(
 
     companion object {
         const val STOP_TIMEOUT_MS = 4_000L
+        const val SILENCE_MS = 3_000L
+
+        /** Choices in Settings: tag to label. */
+        val LANGUAGES = listOf("" to "System", "zh-CN" to "中文", "en-US" to "English")
 
         fun available(context: Context): Boolean =
             SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
