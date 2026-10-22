@@ -1,6 +1,6 @@
 # moshVR Privacy Policy
 
-*Last updated: 2026-09-07*
+*Last updated: 2026-10-23 (covers 0.1.1 and 0.1.2)*
 
 Public URL: https://neyham.github.io/moshvr/privacy/
 
@@ -18,7 +18,8 @@ control that processing.
 You do not need to contact the developer to delete local data:
 
 - **Host profiles** — delete a host from the connections list.
-- **Speech API key** — Settings → Clear API key. Saving an empty key field
+- **Speech API key** — Settings → Clear API key (0.1.1), or Settings → Clear
+  selected key, then Save (0.1.2 and later). Saving an empty key field
   does **not** clear an existing key; use the Clear action. After Clear, the
   previous ciphertext is not kept.
 - **Known hosts** — Settings → Forget a host, or Clear all known hosts.
@@ -101,14 +102,25 @@ developer to delete on request. Product page: https://neyham.github.io/moshvr/
   be processed by the provider. Tapping STOP finishes the take and starts the
   upload if you have consented.
 
-  With no key, in-app MIC does not record. Quest keyboard dictation, if you
-  use it, is handled by Horizon OS under Meta’s terms.
+- **On-headset speech (0.1.2 and later).** With no cloud API key, MIC uses the
+  Quest’s built-in on-device speech recognizer (Android `SpeechRecognizer`,
+  on-device only). Speech is turned into text on the headset by Horizon OS
+  under Meta’s terms; moshVR does not record, store or upload the audio, and
+  never falls back to a network recognizer. The recognized text goes into the
+  composer and is sent to your SSH host only when you press Enter. An optional
+  language choice (system, Chinese or English) is stored locally in Settings.
+  If the headset has no on-device recognizer, MIC opens the system keyboard.
+
+  In 0.1.1, with no key, in-app MIC does not record. Quest keyboard dictation,
+  if you use it, is handled by Horizon OS under Meta’s terms.
 
 ## Permissions
 
 - **INTERNET** — SSH/mosh and optional transcription HTTPS calls.
-- **RECORD_AUDIO** — only while you are recording with the in-app MIC, after
-  you grant it. The terminal works without a microphone.
+- **RECORD_AUDIO** — only while you use the in-app MIC, after you grant it:
+  for a cloud recording when you have added a key, or (0.1.2 and later) so the
+  headset’s on-device recognizer can listen. The terminal works without a
+  microphone.
 - **com.oculus.permission.HAND_TRACKING** — optional hand tracking /
   microgestures in immersive mode.
 - **com.oculus.permission.RENDER_MODEL** — optional controller render models.

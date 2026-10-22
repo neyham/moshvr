@@ -37,13 +37,16 @@ Choose plain SSH when you only need a stream connection.
 <tr>
 <td width="50%" valign="top">
 <h3>⌁ &nbsp; Made for spatial input</h3>
-Quest keyboard, terminal extra keys, controller scrolling and immersive
-hand microgestures. Switch local tabs or control remote tmux windows.
+Both Touch controllers are mapped in VR mode: hold the grip to talk, A for
+Enter, stick to scroll or switch herdr tabs and workspaces. Plus the Quest
+keyboard, terminal extra keys and hand microgestures.
 </td>
 <td width="50%" valign="top">
 <h3>›_ &nbsp; Speak. Review. Send.</h3>
-Optional cloud transcription with SiliconFlow / OpenAI-compatible services, Qwen ASR, or Volcengine speech puts text in the composer. Read it, edit it,
-and send it to your host when you are ready.
+The Quest's own on-device recognizer turns speech into composer text, with
+no account or API key. Optional cloud transcription (SiliconFlow /
+OpenAI-compatible, Qwen ASR, Volcengine) is there if you prefer it. Read it,
+edit it, and send it to your host when you are ready.
 </td>
 </tr>
 </table>
@@ -92,9 +95,11 @@ to reattach; it does not preserve the local moshVR process.
 <summary><strong>Where do my credentials and voice go?</strong></summary>
 
 Saved passwords, keys and speech API keys are encrypted with Android Keystore.
-SSH credentials authenticate to your host. Optional cloud speech requires
-your API key and endpoint consent: **MIC STOP uploads audio to the speech
-provider**, and composer **Send** sends the resulting text to your SSH host.
+SSH credentials authenticate to your host. By default MIC uses the headset's
+on-device recognizer and moshVR never records or uploads the audio. Optional
+cloud speech requires your API key and endpoint consent: then **MIC STOP
+uploads audio to the speech provider**. Either way, Enter / **Send** sends the
+resulting text to your SSH host.
 The developer does not receive your terminal sessions or recordings. Meta's
 SDK and Horizon OS have their own data practices. [Read the privacy policy](PRIVACY.md).
 
@@ -103,8 +108,9 @@ SDK and Horizon OS have their own data practices. [Read the privacy policy](PRIV
 <details>
 <summary><strong>Do I need cloud speech?</strong></summary>
 
-No. Use the Quest keyboard and terminal controls without configuring a speech
-provider. Quest keyboard dictation, if enabled, is handled by Horizon OS.
+No. Without an API key, MIC uses the Quest's on-device speech recognizer
+(pick 中文 or English in Settings if your system language differs). You can
+also just use the Quest keyboard and terminal controls.
 See [controls and voice](docs/USAGE.md) and [provider setup and verification](docs/SPEECH-PROVIDERS.md).
 
 </details>

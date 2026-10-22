@@ -24,8 +24,8 @@ android {
     applicationId = "dev.neyham.moshvr"
     minSdk = 34 // Horizon OS is Android 14 (API 34)
     targetSdk = 34
-    versionCode = 2
-    versionName = "0.1.1"
+    versionCode = 3
+    versionName = "0.1.2"
     testInstrumentationRunner = "dev.neyham.moshvr.DeviceConnectionProbe"
     // Quest runtime and both app-owned native components are arm64 only.
     ndk { abiFilters += "arm64-v8a" }
