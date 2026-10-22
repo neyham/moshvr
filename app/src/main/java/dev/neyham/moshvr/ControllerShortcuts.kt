@@ -47,10 +47,10 @@ sealed class ControllerAction {
  * system for pointing and clicking.
  *
  * Right: grip held = talk, A = Enter, B = Backspace, stick ←→ herdr tab, ↑↓ herdr workspace,
- *        stick click = Ctrl+C.
- * Left:  X = keyboard, Y = Esc, stick ↑↓ = scroll (the SDK's native stick scroll), grip + stick =
- *        arrow keys (repeat while held), stick click = Tab. Stick ←→ alone does nothing, so a
- *        sweeping scroll that passes sideways can never type a key.
+ *        stick click = Ctrl+C (on release, and only for a click that never moved the stick).
+ * Left:  X = keyboard, Y = Esc, stick ↑↓ = scroll, grip + stick = arrow keys (repeat while
+ *        held), stick click = Tab. Stick ←→ alone does nothing, so a sweeping scroll that passes
+ *        sideways can never type a key.
  */
 class ControllerShortcuts {
     private var prev = 0
@@ -59,6 +59,9 @@ class ControllerShortcuts {
     private var rightDirs = 0
     private var rightSince = 0L
     private var rightDone = false
+    private var rightMovedAt = Long.MIN_VALUE / 2
+    private var clickClean = false
+    private var scrollSince = 0L
 
     fun update(state: Int, nowMs: Long): List<ControllerAction> {
         val pressed = state and prev.inv()
@@ -71,8 +74,8 @@ class ControllerShortcuts {
         if (released and Pad.GRIP_R != 0) out += ControllerAction.TalkEnd
         if (edge(Pad.A)) out += ControllerAction.Enter
         if (edge(Pad.B)) out += ControllerAction.Backspace
-        if (edge(Pad.R_CLICK)) out += ControllerAction.CtrlC
         rightStick(state, nowMs)?.let { out += it }
+        rightClick(state, pressed, released, nowMs)?.let { out += it }
 
         if (edge(Pad.X)) out += ControllerAction.ToggleKeyboard
         if (edge(Pad.Y)) out += ControllerAction.Esc
@@ -110,6 +113,23 @@ class ControllerShortcuts {
     }
 
     /**
+     * Ctrl+C can end an agent, so the stick click must be deliberate. Pushing the stick hard
+     * often clicks it too: a click counts only if the stick stayed centred from shortly before
+     * the press until the release, and it fires on release.
+     */
+    private fun rightClick(state: Int, pressed: Int, released: Int, nowMs: Long): ControllerAction? {
+        if (state and RIGHT_DIRS != 0) {
+            rightMovedAt = nowMs
+            clickClean = false
+        }
+        if (pressed and Pad.R_CLICK != 0) clickClean = nowMs - rightMovedAt >= CLICK_QUIET_MS && state and RIGHT_DIRS == 0
+        if (released and Pad.R_CLICK == 0) return null
+        val fire = clickClean
+        clickClean = false
+        return if (fire) ControllerAction.CtrlC else null
+    }
+
+    /**
      * Left stick. Alone, ↑↓ scrolls; with the grip held it is an arrow key: one press on push,
      * then auto-repeat while held. Any key reaching the terminal snaps it back to the bottom,
      * so scrolling must never emit one.
@@ -125,17 +145,19 @@ class ControllerShortcuts {
         // Grip changes start a fresh gesture too, so scroll never turns into a repeating arrow.
         val held = if (arrows) dir or ARROW_MODE else dir
         val fresh = pressed and dir != 0 || held != heldArrow
+        var rows = 1
         if (fresh) {
             heldArrow = held
+            scrollSince = nowMs
             nextRepeatAt = nowMs + if (scrolling) SCROLL_FIRST_MS else ARROW_FIRST_REPEAT_MS
-            // Scrolling waits a beat: the SDK's own stick scroll usually arrives and takes over.
-            if (scrolling) return null
         } else {
             if (nowMs < nextRepeatAt) return null
             nextRepeatAt = nowMs + if (scrolling) SCROLL_REPEAT_MS else ARROW_REPEAT_MS
+            // A long hold speeds up, so a deep scrollback is not a slog.
+            if (scrolling && nowMs - scrollSince >= SCROLL_FAST_AFTER_MS) rows = SCROLL_FAST_ROWS
         }
         return if (scrolling) {
-            ControllerAction.Scroll(if (dir == Pad.L_UP) -1 else 1)
+            ControllerAction.Scroll(if (dir == Pad.L_UP) -rows else rows)
         } else {
             ControllerAction.Arrow(ARROW_KEYS.getValue(dir))
         }
@@ -144,9 +166,17 @@ class ControllerShortcuts {
     companion object {
         const val ARROW_FIRST_REPEAT_MS = 400L
         const val ARROW_REPEAT_MS = 110L
-        /** Fallback only, one row per tick like the SDK scroll at full stick. */
-        const val SCROLL_FIRST_MS = 120L
-        const val SCROLL_REPEAT_MS = 70L
+        /**
+         * Scrolling is ours alone, at an even pace: one row on push, then repeating, faster after
+         * a long hold. (The SDK's own stick scroll varied with how far the stick was pushed and
+         * landed wherever the ray pointed, so it is dropped.)
+         */
+        const val SCROLL_FIRST_MS = 250L
+        const val SCROLL_REPEAT_MS = 80L
+        const val SCROLL_FAST_AFTER_MS = 1_200L
+        const val SCROLL_FAST_ROWS = 3
+        /** The right stick must be centred this long before a click counts as Ctrl+C. */
+        const val CLICK_QUIET_MS = 300L
         private const val ARROW_MODE = 1 shl 30
         /** How long a right-stick push must sit on one single axis before it counts. */
         const val RIGHT_SETTLE_MS = 50L
@@ -154,14 +184,6 @@ class ControllerShortcuts {
 
         /** Only triggers click panels, so A and X are free for shortcuts. */
         const val CLICK_BUTTONS = Pad.TRIGGER_L or Pad.TRIGGER_R
-
-        /**
-         * The SDK's smooth stick scroll reaches the terminal only for a plain left-stick scroll:
-         * not while the grip makes the stick arrow keys, nor while the right stick switches herdr.
-         */
-        fun nativeScrollAllowed(state: Int): Boolean =
-            state and Pad.GRIP_L == 0 &&
-                state and (Pad.R_UP or Pad.R_DOWN or Pad.R_LEFT or Pad.R_RIGHT) == 0
 
         private val LEFT_DIRS = intArrayOf(Pad.L_UP, Pad.L_DOWN, Pad.L_LEFT, Pad.L_RIGHT)
         private val ARROW_KEYS = mapOf(

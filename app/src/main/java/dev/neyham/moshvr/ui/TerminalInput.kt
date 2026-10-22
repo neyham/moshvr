@@ -60,21 +60,12 @@ object StickChrome {
     /** True while immersive controller shortcuts own both sticks (see ControllerShortcuts). */
     @Volatile var sticksMapped: Boolean = false
 
-    /** Plain left-stick scroll: SDK stick scrolls pass through for the familiar smooth scrolling. */
-    @Volatile var nativeScrollAllowed: Boolean = false
-
-    @Volatile var lastNativeScrollAt: Long = 0L
-
-    /** True to drop an SDK stick scroll on the terminal. */
-    fun dropPanelScroll(action: Int, now: Long): Boolean {
-        if (!sticksMapped || action != MotionEvent.ACTION_SCROLL) return false
-        if (!nativeScrollAllowed) return true
-        lastNativeScrollAt = now
-        return false
-    }
-
-    /** The synthetic grip scroll steps aside while native scrolls are arriving. */
-    fun nativeScrollActive(now: Long): Boolean = now - lastNativeScrollAt < 200L
+    /**
+     * True to drop an SDK stick scroll on the terminal: in immersive mode ControllerShortcuts
+     * scrolls on its own, at an even pace and always at the terminal's centre.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun dropPanelScroll(action: Int, now: Long): Boolean = sticksMapped && action == MotionEvent.ACTION_SCROLL
 
     fun bindCycleTab(handler: (Int) -> Unit) {
         onCycleTab = handler

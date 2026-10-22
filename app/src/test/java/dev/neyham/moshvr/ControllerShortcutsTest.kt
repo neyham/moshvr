@@ -39,7 +39,30 @@ class ControllerShortcutsTest {
         c.update(Pad.R_DOWN, 210)
         assertEquals(listOf(ControllerAction.HerdrWorkspace(1)), c.update(Pad.R_DOWN, 300))
         c.update(0, 310)
-        assertEquals(listOf(ControllerAction.CtrlC), c.update(Pad.R_CLICK, 128))
+        // Ctrl+C on release of a clean click, once the stick has been centred a while.
+        assertTrue(c.update(Pad.R_CLICK, 310 + ControllerShortcuts.CLICK_QUIET_MS).isEmpty())
+        assertEquals(listOf(ControllerAction.CtrlC), c.update(0, 400 + ControllerShortcuts.CLICK_QUIET_MS))
+    }
+
+    @Test
+    fun aClickDuringAStickPushIsNotCtrlC() {
+        val c = ControllerShortcuts()
+        // Pushed hard: the stick clicks while deflected.
+        c.update(Pad.R_LEFT, 1_000)
+        c.update(Pad.R_LEFT or Pad.R_CLICK, 1_100)
+        assertTrue(c.update(0, 1_200).none { it == ControllerAction.CtrlC })
+        // Released the push, clicked straight after while springing back.
+        c.update(Pad.R_UP, 2_000)
+        c.update(0, 2_050)
+        c.update(Pad.R_CLICK, 2_100)
+        assertTrue(c.update(0, 2_200).none { it == ControllerAction.CtrlC })
+        // Clicked from centre, then pushed before letting go.
+        c.update(Pad.R_CLICK, 5_000)
+        c.update(Pad.R_CLICK or Pad.R_DOWN, 5_050)
+        assertTrue(c.update(0, 5_100).none { it == ControllerAction.CtrlC })
+        // A plain click still works.
+        c.update(Pad.R_CLICK, 9_000)
+        assertEquals(listOf(ControllerAction.CtrlC), c.update(0, 9_100))
     }
 
     @Test
@@ -62,16 +85,23 @@ class ControllerShortcutsTest {
     }
 
     @Test
-    fun leftStickScrollFallbackIsOneRowAtAnEvenPace() {
+    fun leftStickScrollsAtAnEvenPaceThenFaster() {
         val c = ControllerShortcuts()
-        // Waits a beat first so the SDK's native stick scroll can take over.
-        assertTrue(c.update(Pad.L_UP, 10).isEmpty())
+        // One row on push, a pause, then an even repeat.
+        assertEquals(listOf(ControllerAction.Scroll(-1)), c.update(Pad.L_UP, 10))
         assertTrue(c.update(Pad.L_UP, 100).isEmpty())
         var t = 10 + ControllerShortcuts.SCROLL_FIRST_MS
         repeat(5) {
             assertEquals(listOf(ControllerAction.Scroll(-1)), c.update(Pad.L_UP, t))
             t += ControllerShortcuts.SCROLL_REPEAT_MS
         }
+        // Held long enough, each tick moves several rows.
+        t = 10 + ControllerShortcuts.SCROLL_FAST_AFTER_MS + ControllerShortcuts.SCROLL_REPEAT_MS
+        c.update(Pad.L_UP, t - 1)
+        assertEquals(listOf(ControllerAction.Scroll(-ControllerShortcuts.SCROLL_FAST_ROWS)), c.update(Pad.L_UP, t + ControllerShortcuts.SCROLL_REPEAT_MS))
+        // Down after centring starts slow again.
+        c.update(0, t + 1_000)
+        assertEquals(listOf(ControllerAction.Scroll(1)), c.update(Pad.L_DOWN, t + 1_100))
     }
 
     @Test
@@ -109,26 +139,15 @@ class ControllerShortcutsTest {
     }
 
     @Test
-    fun nativeScrollOnlyForAPlainLeftStick() {
-        assertTrue(ControllerShortcuts.nativeScrollAllowed(Pad.L_UP))
-        assertFalse(ControllerShortcuts.nativeScrollAllowed(Pad.GRIP_L or Pad.L_UP))
-        assertFalse(ControllerShortcuts.nativeScrollAllowed(Pad.R_DOWN))
-        assertFalse(ControllerShortcuts.nativeScrollAllowed(Pad.R_LEFT))
-    }
-
-    @Test
-    fun nativeStickScrollPassesOnlyWhenAllowed() {
+    fun immersiveDropsEverySdkStickScroll() {
         val sc = dev.neyham.moshvr.ui.StickChrome
         val scroll = android.view.MotionEvent.ACTION_SCROLL
         sc.sticksMapped = true
-        sc.nativeScrollAllowed = false
-        assertTrue(sc.dropPanelScroll(scroll, 1_000))
-        sc.nativeScrollAllowed = true
-        assertFalse(sc.dropPanelScroll(scroll, 2_000))
-        assertTrue(sc.nativeScrollActive(2_100))
-        assertFalse(sc.nativeScrollActive(2_500))
-        sc.sticksMapped = false
-        sc.nativeScrollAllowed = false
+        try {
+            assertTrue(sc.dropPanelScroll(scroll, 1_000))
+        } finally {
+            sc.sticksMapped = false
+        }
         assertFalse(sc.dropPanelScroll(scroll, 3_000)) // 2D mode: untouched
     }
 

@@ -192,8 +192,7 @@ class ImmersiveActivity : AppSystemActivity() {
             ControllerAction.CtrlC -> session.write("\u0003")
             // Through the emulator so TUIs in application-cursor mode get the right sequence.
             is ControllerAction.Arrow -> view?.handleKeyCode(action.keyCode, 0)
-            is ControllerAction.Scroll ->
-                if (!StickChrome.nativeScrollActive(android.os.SystemClock.uptimeMillis())) view?.scrollLines(action.rows)
+            is ControllerAction.Scroll -> view?.scrollLines(action.rows)
             is ControllerAction.HerdrTab -> StickChrome.onCycleTab?.invoke(action.direction)
             is ControllerAction.HerdrWorkspace -> StickChrome.onCycleWorkspace?.invoke(action.direction)
         }
