@@ -116,6 +116,8 @@ class VoiceInput(
     fun abandon(status: String? = "Left before STOP. No transcription POST started.") {
         val owner = VoiceSession.isActive(this)
         val gen = generation
+        // Only report a take that was actually running; an idle pause must not leave a red note.
+        val inProgress = recorder.isRecording || transcribeJob != null || dictation.listening
         main.removeCallbacks(stopAtMax)
         dictation.cancel()
         transcribeJob?.cancel()
@@ -127,7 +129,7 @@ class VoiceInput(
         if (gen > 0) WhisperClient.cancel(gen)
         onRecording(false)
         onBusy(false)
-        onStatus(status)
+        if (inProgress) onStatus(status)
     }
 
     fun release() {
