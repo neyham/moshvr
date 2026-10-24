@@ -21,11 +21,13 @@ class StorePrepRegressionTest {
     }
 
     @Test
-    fun legalDoesNotCiteMissingGithubRepo() {
+    fun legalPointsAtTheSiteAndTheTaggedSource() {
         assertFalse(Legal.CONTACT_URL.contains("github.com/neyham/moshvr"))
         assertFalse(Legal.PRIVACY_URL.contains("github.com/neyham/moshvr"))
         assertTrue(Legal.CONTACT_URL.startsWith("https://neyham.github.io/moshvr"))
-        assertTrue(Legal.SOURCE_STATUS.contains("not yet published"))
+        // The public repository, tagged per release, is the corresponding source.
+        assertTrue(Legal.SOURCE_STATUS.contains("github.com/neyham/moshvr"))
+        assertTrue(Legal.SOURCE_STATUS.contains("tag v" + dev.neyham.moshvr.BuildConfig.VERSION_NAME))
         assertTrue(Legal.THIRD_PARTY.contains("packaged in this APK"))
     }
 
