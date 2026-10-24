@@ -108,8 +108,9 @@ SDK and Horizon OS have their own data practices. [Read the privacy policy](PRIV
 <details>
 <summary><strong>Do I need cloud speech?</strong></summary>
 
-No. Without an API key, MIC uses the Quest's on-device speech recognizer
-(pick 中文 or English in Settings if your system language differs). You can
+No. Without an API key, MIC uses the Quest's on-device speech recognizer,
+which follows the headset's system language (English on the Quest we tested;
+it does not support Chinese). For Chinese, add a cloud speech key. You can
 also just use the Quest keyboard and terminal controls.
 See [controls and voice](docs/USAGE.md) and [provider setup and verification](docs/SPEECH-PROVIDERS.md).
 

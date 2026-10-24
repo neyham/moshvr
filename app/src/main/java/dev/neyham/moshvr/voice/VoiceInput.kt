@@ -30,7 +30,6 @@ class VoiceInput(
     private val recorder = VoiceRecorder()
     private val dictation = OnDeviceDictation(
         context = context,
-        language = { settingsStore.load().dictationLanguage },
         onListening = { onRecording(it) },
         onPartial = { onStatus("… $it") },
         onFinal = { text ->

@@ -107,8 +107,7 @@ developer to delete on request. Product page: https://neyham.github.io/moshvr/
   on-device only). Speech is turned into text on the headset by Horizon OS
   under Meta’s terms; moshVR does not record, store or upload the audio, and
   never falls back to a network recognizer. The recognized text goes into the
-  composer and is sent to your SSH host only when you press Enter. An optional
-  language choice (system, Chinese or English) is stored locally in Settings.
+  composer and is sent to your SSH host only when you press Enter.
   If the headset has no on-device recognizer, MIC opens the system keyboard.
 
   In 0.1.1, with no key, in-app MIC does not record. Quest keyboard dictation,

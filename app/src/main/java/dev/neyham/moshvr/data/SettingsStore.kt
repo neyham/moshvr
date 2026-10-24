@@ -29,8 +29,6 @@ data class AppSettings(
     val apiBaseUrl: String = SttPolicy.DEFAULT_BASE_URL,
     /** When true the foreground terminal asks Android to keep the screen on. */
     val keepScreenOn: Boolean = false,
-    /** BCP-47 tag for the headset recognizer (MIC without a cloud key); blank = system language. */
-    val dictationLanguage: String = "",
     /** Explicit consent before any cloud STT upload. */
     val cloudSttConsented: Boolean = false,
     /** Endpoint this consent covers; a URL change requires a new opt-in. */

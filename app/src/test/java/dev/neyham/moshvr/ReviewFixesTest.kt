@@ -293,12 +293,3 @@ class AgyFollowUpReviewTest {
         assertFalse(read("terminal-view/src/main/java/com/termux/view/TerminalView.java").contains("MoshVrStick"))
     }
 }
-
-class DictationLanguageTest {
-    @Test
-    fun oldSettingsKeepTheSystemLanguage() {
-        assertEquals("", dev.neyham.moshvr.data.AppSettings().dictationLanguage)
-        val tags = dev.neyham.moshvr.voice.OnDeviceDictation.LANGUAGES.map { it.first }
-        assertEquals(listOf("", "zh-CN", "en-US"), tags)
-    }
-}

@@ -73,9 +73,10 @@ upload it.
 2. The text appears in the composer. Edit it if needed.
 3. Press A, or tap Send / Enter, to send it to your host.
 
-Recognition follows the headset's system language. To dictate in a different
-language, choose **中文** or **English** under *Headset speech language* in
-Settings. If the headset has no on-device recognizer, MIC opens the keyboard.
+Recognition follows the headset's system language and depends on what Horizon
+OS supports; on our Quest 3 that means English, not Chinese. For Chinese, use
+cloud transcription below. If the headset has no on-device recognizer, MIC
+opens the keyboard.
 
 ### Optional cloud transcription
 

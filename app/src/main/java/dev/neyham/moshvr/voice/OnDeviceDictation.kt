@@ -15,8 +15,6 @@ import android.speech.SpeechRecognizer
  */
 class OnDeviceDictation(
     private val context: Context,
-    /** BCP-47 tag, or blank for the headset's system language. */
-    private val language: () -> String = { "" },
     private val onListening: (Boolean) -> Unit,
     private val onPartial: (String) -> Unit,
     private val onFinal: (String) -> Unit,
@@ -41,10 +39,6 @@ class OnDeviceDictation(
             // Hold-to-talk: ask for a longer pause before the take ends (a hint; recognizers may ignore it).
             .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, SILENCE_MS)
             .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, SILENCE_MS)
-        language().takeIf { it.isNotBlank() }?.let {
-            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, it)
-            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, it)
-        }
         listening = true
         onListening(true)
         // The system speech service can be missing or refuse to bind; report it, don't crash.
@@ -150,9 +144,6 @@ class OnDeviceDictation(
         const val STOP_TIMEOUT_MS = 4_000L
         const val SILENCE_MS = 3_000L
 
-        /** Choices in Settings: tag to label. */
-        val LANGUAGES = listOf("" to "System", "zh-CN" to "中文", "en-US" to "English")
-
         fun available(context: Context): Boolean =
             SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
     }
@@ -168,7 +159,7 @@ object DictationText {
         SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission needed"
         SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Speech recognizer is busy; try again"
         SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE ->
-            "This language is not available for on-device speech"
+            "Headset speech doesn't support the system language; add a cloud speech key in Settings"
         else -> "Speech recognition failed ($error)"
     }
 }
