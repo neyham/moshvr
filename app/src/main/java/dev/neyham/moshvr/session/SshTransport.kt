@@ -39,6 +39,8 @@ class SshTransport(
 
     private var keepAlive: Thread? = null
 
+    private val resizer = SshResizer()
+
     override fun connect(columns: Int, rows: Int): TransportStreams {
         val conn = SshAuth.connectAndAuthenticate(profile, knownHosts, ownerId)
         connection = conn
@@ -96,7 +98,8 @@ class SshTransport(
     }
 
     override fun resize(columns: Int, rows: Int) {
-        runCatching { session?.resizePTY(columns, rows, 0, 0) }
+        val sess = session ?: return
+        resizer.post(columns, rows) { c, r -> sess.resizePTY(c, r, 0, 0) }
     }
 
     override fun close() {
@@ -119,6 +122,29 @@ class SshTransport(
 
     private companion object {
         const val EXIT_STATUS_WAIT_MS = 500L
+    }
+}
+
+/**
+ * Sends PTY resizes off the caller's thread, newest size only.
+ *
+ * Resizes arrive on the main thread. There a socket write throws NetworkOnMainThreadException
+ * after sshlib has already encrypted the packet, so the cipher and sequence number move on
+ * without the bytes being sent and the server drops the link ("Corrupted MAC on input").
+ */
+class SshResizer {
+    private val latest = java.util.concurrent.atomic.AtomicReference<Pair<Int, Int>?>(null)
+    private val executor = java.util.concurrent.ThreadPoolExecutor(
+        0, 1, 5, java.util.concurrent.TimeUnit.SECONDS,
+        java.util.concurrent.LinkedBlockingQueue(),
+    ) { r -> Thread(r, "SshResize").apply { isDaemon = true } }
+
+    fun post(columns: Int, rows: Int, send: (Int, Int) -> Unit) {
+        latest.set(columns to rows)
+        executor.execute {
+            val (c, r) = latest.getAndSet(null) ?: return@execute
+            runCatching { send(c, r) }
+        }
     }
 }
 
