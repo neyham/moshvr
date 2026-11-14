@@ -2,8 +2,8 @@
 <manifest
   xmlns:android="http://schemas.android.com/apk/res/android"
   xmlns:horizonos="http://schemas.horizonos/sdk"
-  android:versionCode="4"
-  android:versionName="0.1.3"
+  android:versionCode="5"
+  android:versionName="0.1.4"
   android:installLocation="auto">
 
   <!-- Hybrid app: works in both panel (3dof) and immersive (6dof) modes -->

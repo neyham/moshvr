@@ -179,6 +179,16 @@ fun TerminalPane(
         // The composer may not exist yet; focus it once it has been composed (effect below).
         composerFocusRequests++
     }
+    // KEYB closes the composer too. A leftover voice message must not pin it open; a draft still does.
+    fun toggleComposer() {
+        if (composerOpen || (voiceStatus != null && !recording && !transcribing)) {
+            composerOpen = false
+            if (!recording && !transcribing) voiceStatus = null
+            keyboard?.hide()
+        } else {
+            showComposerKeyboard()
+        }
+    }
     val voice = remember(open.id) {
         VoiceInput(
             context = context,
@@ -237,14 +247,7 @@ fun TerminalPane(
                     open.session.write("\r")
                 }
             },
-            keyboard = {
-                if (composerOpen) {
-                    composerOpen = false
-                    keyboard?.hide()
-                } else {
-                    showComposerKeyboard()
-                }
-            },
+            keyboard = { toggleComposer() },
             // A dictated draft is edited first; otherwise it is the terminal's Backspace.
             backspace = {
                 val draft = open.composerDraft
@@ -455,7 +458,7 @@ fun TerminalPane(
             onMic = { toggleTalk() },
             onCancelVoice = { voice.cancel() },
             onScroll = { rows -> terminalView?.scrollLines(rows) },
-            onKeyboard = { showComposerKeyboard() },
+            onKeyboard = { toggleComposer() },
         )
         if (composerOpen || composerText.isNotEmpty() || voiceStatus != null) {
             LaunchedEffect(composerFocusRequests) {

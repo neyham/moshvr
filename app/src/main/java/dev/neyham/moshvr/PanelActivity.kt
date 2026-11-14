@@ -29,6 +29,8 @@ class PanelActivity : ComponentActivity() {
                 settingsStore = app.settingsStore,
                 clipCorners = false,
                 modeSwitchLabel = "[ IMMERSE ]",
+                // Back from immersive this is a fresh activity: land on the open session, not the host list.
+                startOnHome = app.sessionManager.active == null,
                 onModeSwitch = { HybridHandoff.leavePanelForImmersive(this@PanelActivity) },
             )
         }
