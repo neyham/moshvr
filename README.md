@@ -7,7 +7,8 @@
 </p>
 
 <p align="center">
-  <a href="https://sidequestvr.com/app/62512"><strong>Get on SideQuest ↗</strong></a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="https://www.meta.com/experiences/moshvr/1340208049179116/"><strong>Get it on the Meta Horizon Store ↗</strong></a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="https://sidequestvr.com/app/62512">SideQuest</a>&nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="#install--run">Install &amp; run</a>&nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="docs/USAGE.md">Controls</a>&nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="SUPPORT.md">Get help</a>&nbsp;&nbsp;·&nbsp;&nbsp;
@@ -53,13 +54,18 @@ edit it, and send it to your host when you are ready.
 
 ## Install & run
 
-### SideQuest (Recommended)
+### Meta Horizon Store (Recommended)
 
-moshVR is distributed on SideQuest as an Early Access release:
+moshVR is free on the Meta Horizon Store. No Developer Mode needed:
 
-👉 **[Install via SideQuest (App #62512)](https://sidequestvr.com/app/62512)**
+👉 **[Get moshVR on the Meta Horizon Store](https://www.meta.com/experiences/moshvr/1340208049179116/)**
 
-Connect your Quest in Developer Mode and install directly with the SideQuest app or web installer.
+### SideQuest
+
+The same signed build is on [SideQuest (App #62512)](https://sidequestvr.com/app/62512)
+for sideloading. Connect your Quest in Developer Mode and install with the SideQuest
+app or web installer. Release APKs and checksums are also attached to each
+[GitHub release](https://github.com/neyham/moshvr/releases).
 
 ### Build from source
 
@@ -132,4 +138,4 @@ Want to help? Start with [contributing](CONTRIBUTING.md), explore the
 Made by **[neyham](https://github.com/neyham)** · Independent software for Quest.
 
 [GPLv3](LICENSE) for moshVR code; dependencies retain their own licenses as noted in [THIRD_PARTY.md](THIRD_PARTY.md).
-Early Access package is distributed on [SideQuest](https://sidequestvr.com/app/62512).
+Available on the [Meta Horizon Store](https://www.meta.com/experiences/moshvr/1340208049179116/) and [SideQuest](https://sidequestvr.com/app/62512).
